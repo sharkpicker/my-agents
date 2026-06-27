@@ -42,10 +42,10 @@ from .stock_data import (
     get_concept_blocks,
     get_insider_transactions,
     get_profit_forecast,
-    get_fund_flow,
     get_data_dir,
 )
 from . import universe
+from . import fund_data
 
 
 def cmd_kline(args):
@@ -151,12 +151,6 @@ def cmd_forecast(args):
     print(result)
 
 
-def cmd_fund_flow(args):
-    """获取资金流向数据."""
-    result = get_fund_flow(ticker=args.symbol, include_history=args.history)
-    print(result)
-
-
 def cmd_data_dir(args):
     """显示数据存储目录."""
     print(f"数据存储目录: {get_data_dir()}")
@@ -207,6 +201,59 @@ def cmd_universe_refresh(args):
     """刷新股票列表."""
     count = universe.refresh_stock_list()
     print(f"股票列表已刷新，共 {count} 只")
+
+
+# ---------------------------------------------------------------------------
+# 基金数据命令
+# ---------------------------------------------------------------------------
+
+def cmd_fund_detect(args):
+    """探测代码是否为基金（用于工作流路由）。"""
+    is_fund, name = fund_data.is_fund_code(args.symbol)
+    if is_fund:
+        print(f"FUND|{name}")
+    else:
+        print("STOCK")
+
+
+def cmd_fund_nav(args):
+    """获取基金历史净值."""
+    print(fund_data.get_fund_nav(args.symbol, args.start, args.end))
+
+
+def cmd_fund_info(args):
+    """获取基金概况."""
+    print(fund_data.get_fund_info(args.symbol))
+
+
+def cmd_fund_holdings(args):
+    """获取基金重仓股."""
+    print(fund_data.get_fund_holdings(args.symbol))
+
+
+def cmd_fund_manager(args):
+    """获取基金经理."""
+    print(fund_data.get_fund_manager(args.symbol))
+
+
+def cmd_fund_performance(args):
+    """获取基金业绩表现."""
+    print(fund_data.get_fund_performance(args.symbol))
+
+
+def cmd_fund_flows(args):
+    """获取基金份额/规模变动."""
+    print(fund_data.get_fund_flows(args.symbol))
+
+
+def cmd_fund_news(args):
+    """获取基金相关新闻."""
+    print(fund_data.get_fund_news(args.symbol, args.start, args.end))
+
+
+def cmd_fund_global_news(args):
+    """获取行业/主题财经新闻."""
+    print(fund_data.get_fund_global_news(args.symbol, limit=args.limit))
 
 
 def main():
@@ -302,13 +349,6 @@ def main():
     p.add_argument("symbol", help="股票代码")
     p.set_defaults(func=cmd_forecast)
 
-    # fund-flow
-    p = subparsers.add_parser("fund-flow", help="获取资金流向数据")
-    p.add_argument("symbol", help="股票代码")
-    p.add_argument("--no-history", dest="history", action="store_false",
-                   default=True, help="不包含历史数据")
-    p.set_defaults(func=cmd_fund_flow)
-
     # data-dir
     p = subparsers.add_parser("data-dir", help="显示数据存储目录")
     p.set_defaults(func=cmd_data_dir)
@@ -339,6 +379,60 @@ def main():
     # universe refresh-list
     p2 = universe_sub.add_parser("refresh-list", help="刷新股票列表")
     p2.set_defaults(func=cmd_universe_refresh)
+
+    # fund - 基金数据获取
+    pf = subparsers.add_parser("fund", help="基金数据获取（净值/概况/重仓股/经理/业绩/申赎）")
+    fund_sub = pf.add_subparsers(dest="fund_cmd", help="可用子命令")
+
+    # fund detect（路由探测）
+    pf2 = fund_sub.add_parser("detect", help="探测代码是否为基金（输出 FUND|名称 或 STOCK）")
+    pf2.add_argument("symbol", help="6位代码")
+    pf2.set_defaults(func=cmd_fund_detect)
+
+    # fund nav
+    pf2 = fund_sub.add_parser("nav", help="获取基金历史净值")
+    pf2.add_argument("symbol", help="基金代码 (6位)")
+    pf2.add_argument("--start", required=True, help="开始日期 YYYY-MM-DD")
+    pf2.add_argument("--end", required=True, help="结束日期 YYYY-MM-DD")
+    pf2.set_defaults(func=cmd_fund_nav)
+
+    # fund info
+    pf2 = fund_sub.add_parser("info", help="获取基金概况")
+    pf2.add_argument("symbol", help="基金代码")
+    pf2.set_defaults(func=cmd_fund_info)
+
+    # fund holdings
+    pf2 = fund_sub.add_parser("holdings", help="获取基金重仓股")
+    pf2.add_argument("symbol", help="基金代码")
+    pf2.set_defaults(func=cmd_fund_holdings)
+
+    # fund manager
+    pf2 = fund_sub.add_parser("manager", help="获取基金经理")
+    pf2.add_argument("symbol", help="基金代码")
+    pf2.set_defaults(func=cmd_fund_manager)
+
+    # fund performance
+    pf2 = fund_sub.add_parser("performance", help="获取基金业绩表现")
+    pf2.add_argument("symbol", help="基金代码")
+    pf2.set_defaults(func=cmd_fund_performance)
+
+    # fund flows
+    pf2 = fund_sub.add_parser("flows", help="获取基金份额/规模变动")
+    pf2.add_argument("symbol", help="基金代码")
+    pf2.set_defaults(func=cmd_fund_flows)
+
+    # fund news
+    pf2 = fund_sub.add_parser("news", help="获取基金相关新闻")
+    pf2.add_argument("symbol", help="基金代码")
+    pf2.add_argument("--start", required=True, help="开始日期 YYYY-MM-DD")
+    pf2.add_argument("--end", required=True, help="结束日期 YYYY-MM-DD")
+    pf2.set_defaults(func=cmd_fund_news)
+
+    # fund global-news
+    pf2 = fund_sub.add_parser("global-news", help="获取行业/主题财经新闻")
+    pf2.add_argument("symbol", help="基金代码（用于标识，实际拉取全局新闻）")
+    pf2.add_argument("--limit", type=int, default=20, help="新闻条数")
+    pf2.set_defaults(func=cmd_fund_global_news)
 
     args = parser.parse_args()
     if not args.command:
