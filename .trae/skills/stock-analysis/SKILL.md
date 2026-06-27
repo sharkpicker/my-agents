@@ -173,3 +173,16 @@ description: Use when user provides any of the following for A股 / 公募基金
 ```
 
 **主对话绝不写分析报告。所有报告必须由 subagent 生成。**
+
+### 7. 所有 subagent 必须遵循 subagent-contract.md
+
+详见 `.trae/skills/stock-analysis/subagent-contract.md`:
+- summary 限 2k tokens
+- detail_path 必须真实写盘
+- evidence 至少 3 个数据点
+
+违反契约的 subagent 输出视为无效,必须重跑。
+
+### 8. Step 0 必须先调 input_router
+
+任何分析流程的第一步都必须是 input_router,识别输入类型(A/B/C-1/C-2/C-3)。不允许跳过路由直接分析。
