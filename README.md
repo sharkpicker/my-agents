@@ -456,6 +456,55 @@ my_agents/
 
 ---
 
+## 五种分析场景(新增)
+
+### 单股票(A)
+
+```bash
+python -m data_tools.cli detect "000001"
+```
+
+或直接在 TRAE 中输入 "分析平安银行"。
+
+### 单基金(B)
+
+```bash
+python -m data_tools.cli detect "001717"
+```
+
+或输入 "工银前沿医疗"。
+
+### 组合诊断(C-1 / C-2 / C-3)
+
+提供持仓列表(基金 / 股票 / 混合),系统自动识别类型并跑相应工作流。
+
+## 4 个新 agent(2026-06 重构)
+
+| Agent | 职责 | Step |
+|-------|------|------|
+| input_router | 输入类型识别 | 0 |
+| data_quality_auditor | 数据质量审计 | 2 |
+| portfolio_analyst | 组合专项分析 | 2.5 |
+| html_renderer | HTML 报告渲染 | 8 |
+
+## 测试
+
+```bash
+pytest -v              # 33 个测试,全部 < 30 秒
+pytest tests/e2e -v    # 仅 5 个 E2E
+```
+
+## 文档
+
+- [架构图](docs/architecture.md)
+- [角色模板使用指南](docs/role-prompts.md)
+- [贡献指南](docs/contributing.md)
+- [测试运行指南](docs/testing.md)
+- [重构设计 spec](docs/superpowers/specs/2026-06-27-stock-analysis-refactor-design.md)
+- [实施计划](docs/superpowers/plans/2026-06-27-stock-analysis-refactor.md)
+
+---
+
 ## 触发关键词
 
 ### 股票分析触发

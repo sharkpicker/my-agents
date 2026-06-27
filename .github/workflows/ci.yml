@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  schedule:
+    - cron: '0 2 * * *'  # 每日 02:00 跑全量(含 e2e)
+  workflow_dispatch:       # 手动触发全量
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11"]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Cache data
+        uses: actions/cache@v4
+        with:
+          path: data/
+          key: data-${{ hashFiles('data/_meta/**') }}
+      - name: Run unit tests
+        run: pytest tests/unit -v --tb=short
+      - name: Run integration tests
+        run: pytest tests/integration -v --tb=short
+        env:
+          MOCK_NETWORK: "true"
+      - name: Run e2e tests
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        run: pytest tests/e2e -v --tb=short
+      - name: Upload coverage
+        if: github.event_name == 'workflow_dispatch'
+        uses: codecov/codecov-action@v4
