@@ -22,29 +22,71 @@ import requests
 # ---------------------------------------------------------------------------
 # 数据存储目录
 # ---------------------------------------------------------------------------
+# 设计: 股票与基金均为 6 位代码,可能存在代码空间重叠,故物理上分目录存储。
+#   - A 股股票 -> data/stocks/<code>/
+#   - 公募基金 -> data/funds/<code>/
+#   - 全局元数据(股票列表/采集进度) -> data/stocks/_meta/
+# 这种隔离避免了代码冲突导致的数据互相覆盖。
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(BASE_DIR, "data")
-os.makedirs(DATA_DIR, exist_ok=True)
+STOCKS_DIR = os.path.join(DATA_DIR, "stocks")
+FUNDS_DIR = os.path.join(DATA_DIR, "funds")
+META_DIR = os.path.join(STOCKS_DIR, "_meta")
+
+for _d in (DATA_DIR, STOCKS_DIR, FUNDS_DIR, META_DIR):
+    os.makedirs(_d, exist_ok=True)
 
 
 def get_data_dir() -> str:
-    """返回数据存储根目录."""
+    """返回数据存储根目录 (data/)."""
     return DATA_DIR
+
+
+def get_stocks_dir() -> str:
+    """返回股票数据根目录 (data/stocks/)."""
+    return STOCKS_DIR
+
+
+def get_funds_dir() -> str:
+    """返回基金数据根目录 (data/funds/)."""
+    return FUNDS_DIR
+
+
+def get_meta_dir() -> str:
+    """返回股票全局元数据目录 (data/stocks/_meta/)."""
+    return META_DIR
 
 
 def get_stock_data_dir(symbol: str) -> str:
     """获取某只股票的数据目录路径."""
     code = _normalize_ticker(symbol)
-    stock_dir = os.path.join(DATA_DIR, code)
+    stock_dir = os.path.join(STOCKS_DIR, code)
     os.makedirs(stock_dir, exist_ok=True)
     return stock_dir
+
+
+def get_fund_data_dir(symbol: str) -> str:
+    """获取某只基金的数据目录路径."""
+    code = _normalize_ticker(symbol)
+    fund_dir = os.path.join(FUNDS_DIR, code)
+    os.makedirs(fund_dir, exist_ok=True)
+    return fund_dir
 
 
 def save_data_file(symbol: str, filename: str, content: str) -> str:
     """保存数据文件到股票数据目录，返回文件路径."""
     stock_dir = get_stock_data_dir(symbol)
     filepath = os.path.join(stock_dir, filename)
+    with open(filepath, "w", encoding="utf-8") as f:
+        f.write(content)
+    return filepath
+
+
+def save_fund_data_file(symbol: str, filename: str, content: str) -> str:
+    """保存数据文件到基金数据目录，返回文件路径."""
+    fund_dir = get_fund_data_dir(symbol)
+    filepath = os.path.join(fund_dir, filename)
     with open(filepath, "w", encoding="utf-8") as f:
         f.write(content)
     return filepath

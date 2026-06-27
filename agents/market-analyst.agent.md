@@ -38,7 +38,7 @@ python -m data_tools.cli indicator 000001 rsi --date 2026-06-24 --days 120
 python -m data_tools.cli data-dir
 ```
 
-数据会自动保存到 `data/<股票代码>/` 目录下，你也可以通过 `read_file` 读取已保存的数据文件。
+数据会自动保存到 `data/stocks/<股票代码>/` 目录下，你也可以通过 `read_file` 读取已保存的数据文件。
 
 **必须获取的数据：**
 1. 近 2 年 K 线数据（约 480 个交易日）

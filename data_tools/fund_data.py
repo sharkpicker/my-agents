@@ -25,9 +25,9 @@ import requests
 
 # 复用股票模块的存储与节流机制，保证数据落盘格式一致
 from .stock_data import (
-    save_data_file,
-    get_data_dir,
-    get_stock_data_dir,
+    save_fund_data_file,
+    get_funds_dir,
+    get_fund_data_dir,
     _UA,
     _em_get,
     _http_get,
@@ -258,7 +258,7 @@ def get_fund_nav(
         result = header + csv_out
 
         if save:
-            save_data_file(code, f"nav_{start_date}_{end_date}.csv", result)
+            save_fund_data_file(code, f"nav_{start_date}_{end_date}.csv", result)
         return result
 
     except Exception as e:
@@ -305,7 +305,7 @@ def get_fund_info(symbol: str, save: bool = True) -> str:
 
         result = "\n".join(lines)
         if save:
-            save_data_file(code, f"fund_info_{datetime.now().strftime('%Y%m%d')}.txt", result)
+            save_fund_data_file(code, f"fund_info_{datetime.now().strftime('%Y%m%d')}.txt", result)
         return result
 
     except Exception as e:
@@ -386,7 +386,7 @@ def get_fund_holdings(symbol: str, save: bool = True) -> str:
 
         result = "\n".join(lines)
         if save:
-            save_data_file(code, f"holdings_{datetime.now().strftime('%Y%m%d')}.md", result)
+            save_fund_data_file(code, f"holdings_{datetime.now().strftime('%Y%m%d')}.md", result)
         return result
 
     except Exception as e:
@@ -453,7 +453,7 @@ def get_fund_manager(symbol: str, save: bool = True) -> str:
 
         result = "\n".join(lines)
         if save:
-            save_data_file(code, f"manager_{datetime.now().strftime('%Y%m%d')}.md", result)
+            save_fund_data_file(code, f"manager_{datetime.now().strftime('%Y%m%d')}.md", result)
         return result
 
     except Exception as e:
@@ -522,7 +522,7 @@ def get_fund_performance(symbol: str, save: bool = True) -> str:
 
         result = "\n".join(lines)
         if save:
-            save_data_file(code, f"performance_{datetime.now().strftime('%Y%m%d')}.md", result)
+            save_fund_data_file(code, f"performance_{datetime.now().strftime('%Y%m%d')}.md", result)
         return result
 
     except Exception as e:
@@ -567,7 +567,7 @@ def get_fund_flows(symbol: str, save: bool = True) -> str:
                 if len(lines) > 3:
                     result = "\n".join(lines)
                     if save:
-                        save_data_file(code, f"flows_{datetime.now().strftime('%Y%m%d')}.md", result)
+                        save_fund_data_file(code, f"flows_{datetime.now().strftime('%Y%m%d')}.md", result)
                     return result
             except Exception:
                 pass
@@ -591,7 +591,7 @@ def get_fund_flows(symbol: str, save: bool = True) -> str:
 
         result = "\n".join(lines)
         if save:
-            save_data_file(code, f"flows_{datetime.now().strftime('%Y%m%d')}.md", result)
+            save_fund_data_file(code, f"flows_{datetime.now().strftime('%Y%m%d')}.md", result)
         return result
 
     except Exception as e:
@@ -686,7 +686,7 @@ def get_fund_news(
 
         result = f"## {code} 基金新闻 ({start_date} ~ {end_date})\n\n共 {count} 条\n\n" + news_str
         if save:
-            save_data_file(code, f"fund_news_{start_date}_{end_date}.md", result)
+            save_fund_data_file(code, f"fund_news_{start_date}_{end_date}.md", result)
         return result
 
     except Exception as e:

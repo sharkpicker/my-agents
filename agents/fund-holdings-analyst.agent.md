@@ -31,7 +31,7 @@ tools:
 python -m data_tools.cli fund holdings 001717
 ```
 
-数据会自动保存到 `data/<基金代码>/` 目录下。
+数据会自动保存到 `data/funds/<基金代码>/` 目录下(与股票数据物理隔离)。
 
 **必须获取的数据：**
 1. 最新报告期前十大重仓股明细

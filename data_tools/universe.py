@@ -17,7 +17,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 from .stock_data import (
-    get_data_dir,
+    get_meta_dir,
     get_stock_data,
     get_indicators,
     get_fundamentals,
@@ -79,9 +79,8 @@ DEFAULT_CONFIG = {
 
 
 def _meta_dir() -> str:
-    path = os.path.join(get_data_dir(), "_meta")
-    os.makedirs(path, exist_ok=True)
-    return path
+    # 元数据物理位置: data/stocks/_meta/(归股票所有,因为它就是 A 股全市场列表与进度)
+    return get_meta_dir()
 
 
 def _config_path() -> str:

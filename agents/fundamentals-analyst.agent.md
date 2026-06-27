@@ -47,7 +47,7 @@ python -m data_tools.cli forecast 000001
 python -m data_tools.cli concept 000001
 ```
 
-数据会自动保存到 `data/<股票代码>/` 目录下。
+数据会自动保存到 `data/stocks/<股票代码>/` 目录下。
 
 **必须获取的数据：**
 1. 基本面快照（估值、市值、ROE等）

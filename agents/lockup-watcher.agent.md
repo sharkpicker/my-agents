@@ -43,7 +43,7 @@ python -m data_tools.cli fundamentals 000001
 python -m data_tools.cli news 000001 --start 2026-03-24 --end 2026-06-24
 ```
 
-数据会自动保存到 `data/<股票代码>/` 目录下。
+数据会自动保存到 `data/stocks/<股票代码>/` 目录下。
 
 **必须获取的数据：**
 1. 近 6 个月限售解禁数据

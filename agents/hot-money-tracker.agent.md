@@ -51,7 +51,7 @@ python -m data_tools.cli concept 000001
 python -m data_tools.cli insider 000001
 ```
 
-数据会自动保存到 `data/<股票代码>/` 或 `data/` 目录下。
+数据会自动保存到 `data/stocks/<股票代码>/` 或 `data/stocks/_meta/` 目录下。
 
 **必须获取的数据：**
 1. 近 2 年 K 线和成交量数据

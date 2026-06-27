@@ -38,7 +38,7 @@ python -m data_tools.cli global-news --limit 30
 python -m data_tools.cli concept 000001
 ```
 
-数据会自动保存到 `data/<股票代码>/` 或 `data/` 目录下。
+数据会自动保存到 `data/stocks/<股票代码>/` 或 `data/stocks/_meta/` 目录下。
 
 **必须获取的数据：**
 1. 近 3 个月个股新闻（事件时间线）

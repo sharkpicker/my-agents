@@ -43,6 +43,9 @@ from .stock_data import (
     get_insider_transactions,
     get_profit_forecast,
     get_data_dir,
+    get_stocks_dir,
+    get_funds_dir,
+    get_meta_dir,
 )
 from . import universe
 from . import fund_data
@@ -153,7 +156,10 @@ def cmd_forecast(args):
 
 def cmd_data_dir(args):
     """显示数据存储目录."""
-    print(f"数据存储目录: {get_data_dir()}")
+    print(f"数据存储根目录: {get_data_dir()}")
+    print(f"  - 股票目录: {get_stocks_dir()}")
+    print(f"  - 基金目录: {get_funds_dir()}")
+    print(f"  - 元数据:   {get_meta_dir()}")
 
 
 def cmd_universe_init(args):

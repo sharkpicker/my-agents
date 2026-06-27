@@ -38,7 +38,7 @@ python -m data_tools.cli news 000001 --start 2026-03-24 --end 2026-06-24
 python -m data_tools.cli concept 000001
 ```
 
-数据会自动保存到 `data/<股票代码>/` 或 `data/` 目录下。
+数据会自动保存到 `data/stocks/<股票代码>/` 或 `data/stocks/_meta/` 目录下。
 
 **必须获取的数据：**
 1. 近 3 个月全球财经新闻（筛选政策相关）

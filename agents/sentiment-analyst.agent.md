@@ -39,7 +39,7 @@ python -m data_tools.cli global-news --limit 30
 python -m data_tools.cli hot-stocks
 ```
 
-数据会自动保存到 `data/<股票代码>/` 或 `data/` 目录下，你也可以通过 `read_file` 读取已保存的数据文件。
+数据会自动保存到 `data/stocks/<股票代码>/` 或 `data/stocks/_meta/` 目录下，你也可以通过 `read_file` 读取已保存的数据文件。
 
 **必须获取的数据：**
 1. 近 3 个月个股新闻（用于情绪分析）

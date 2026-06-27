@@ -35,7 +35,7 @@ python -m data_tools.cli fund nav 001717 --start 2025-06-27 --end 2026-06-27
 python -m data_tools.cli fund performance 001717
 ```
 
-数据会自动保存到 `data/<基金代码>/` 目录下。
+数据会自动保存到 `data/funds/<基金代码>/` 目录下(与股票数据物理隔离)。
 
 **必须获取的数据：**
 1. 近 1 年历史净值（单位净值/累计净值/日增长率）

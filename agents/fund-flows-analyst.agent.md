@@ -35,7 +35,7 @@ python -m data_tools.cli fund flows 001717
 python -m data_tools.cli fund info 001717
 ```
 
-数据会自动保存到 `data/<基金代码>/` 目录下。
+数据会自动保存到 `data/funds/<基金代码>/` 目录下(与股票数据物理隔离)。
 
 **必须获取的数据：**
 1. 近 8 期份额与规模变动数据

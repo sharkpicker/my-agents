@@ -301,34 +301,41 @@ python -m data_tools.cli data-dir   # 显示数据存储目录
 
 ## 数据目录结构
 
+> **重要**：股票与基金均为 6 位代码，物理上**分目录**存放以避免代码空间重叠。
+> - A 股股票 → `data/stocks/<代码>/`
+> - 公募基金 → `data/funds/<代码>/`
+> - 全市场元数据 → `data/stocks/_meta/`
+
 ```
 data/
-├── _meta/                                  # 元数据
-│   ├── stock_list.json                     # 全量股票列表
-│   ├── universe_progress.json              # 采集进度追踪
-│   └── universe_config.json                # 采集配置
-├── <股票代码>/                             # 按代码分子目录（股票/基金共用）
-│   ├── kline_<开始日期>_<结束日期>.csv      # K线数据
-│   ├── fundamentals_<日期>.txt              # 基本面快照
-│   ├── indicator_<指标名>_<日期>.txt        # 技术指标
-│   ├── news_<开始日期>_<结束日期>.md        # 个股新闻
-│   ├── balance_sheet_quarterly.csv         # 资产负债表
-│   ├── income_statement_quarterly.csv      # 利润表
-│   ├── cashflow_quarterly.csv              # 现金流量表
-│   ├── dragon_tiger_<日期>.md              # 龙虎榜
-│   ├── lockup_<日期>.md                    # 限售解禁
-│   ├── concept_blocks_<日期>.md            # 概念板块
-│   ├── insider_transactions_<日期>.txt     # 股东研究
-│   ├── profit_forecast_<日期>.md           # 盈利预测
-│   ├── nav_<开始日期>_<结束日期>.csv       # 基金净值（基金专属）
-│   ├── info_<日期>.md                      # 基金概况（基金专属）
-│   ├── holdings_<日期>.md                  # 基金重仓股（基金专属）
-│   ├── manager_<日期>.md                   # 基金经理（基金专属）
-│   ├── performance_<日期>.md               # 基金业绩表现（基金专属）
-│   └── flows_<日期>.md                     # 基金份额变动（基金专属）
-├── global_news_<日期>.md                   # 全球财经新闻
-├── northbound_<日期>.md                    # 北向资金
-└── hot_stocks_<日期>.md                    # 热门股
+├── stocks/                                 # A 股股票(按代码分子目录)
+│   ├── _meta/                              # 元数据
+│   │   ├── stock_list.json                 # 全量股票列表
+│   │   ├── universe_progress.json          # 采集进度追踪
+│   │   └── universe_config.json            # 采集配置
+│   └── <股票代码>/                         # 例如 data/stocks/600519/
+│       ├── kline_<开始日期>_<结束日期>.csv   # K线数据
+│       ├── fundamentals_<日期>.txt         # 基本面快照
+│       ├── indicator_<指标名>_<日期>.txt   # 技术指标
+│       ├── news_<开始日期>_<结束日期>.md   # 个股新闻
+│       ├── balance_sheet_quarterly.csv     # 资产负债表
+│       ├── income_statement_quarterly.csv  # 利润表
+│       ├── cashflow_quarterly.csv          # 现金流量表
+│       ├── dragon_tiger_<日期>.md          # 龙虎榜
+│       ├── lockup_<日期>.md                # 限售解禁
+│       ├── concept_blocks_<日期>.md        # 概念板块
+│       ├── insider_transactions_<日期>.txt # 股东研究
+│       └── profit_forecast_<日期>.md       # 盈利预测
+├── funds/                                  # 公募基金(按代码分子目录)
+│   └── <基金代码>/                         # 例如 data/funds/001717/
+│       ├── nav_<开始日期>_<结束日期>.csv   # 历史净值
+│       ├── fund_info_<日期>.txt            # 基金概况
+│       ├── holdings_<日期>.md              # 重仓股
+│       ├── manager_<日期>.md               # 基金经理
+│       ├── performance_<日期>.md           # 业绩表现
+│       ├── flows_<日期>.md                 # 份额变动
+│       └── fund_news_<开始日期>_<结束日期>.md # 基金新闻
+└── (其他全局缓存: hot_stocks_<日期>.md / northbound_<日期>.md / global_news_<日期>.md 等)
 
 reports/
 └── <日期>/
