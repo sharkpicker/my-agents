@@ -23,8 +23,11 @@
 """
 
 import sys
+import json
 import argparse
 from datetime import datetime
+
+import click
 
 from .stock_data import (
     get_stock_data,
@@ -260,6 +263,85 @@ def cmd_fund_news(args):
 def cmd_fund_global_news(args):
     """获取行业/主题财经新闻."""
     print(fund_data.get_fund_global_news(args.symbol, limit=args.limit))
+
+
+# ---------------------------------------------------------------------------
+# Click 接口层（Phase 2 / Task 2.5: detect + portfolio）
+# 与上方 argparse 入口并存,供测试与新子命令调用
+# ---------------------------------------------------------------------------
+
+from .portfolio import (
+    calculate_concentration,
+    detect_overlap,
+    calculate_balance,
+)
+
+
+@click.group()
+def cli():
+    """A股数据/分析工具集 (Click 接口)."""
+    pass
+
+
+@cli.command()
+@click.argument("text")
+def detect(text: str):
+    """识别用户输入类型(A/B/C-1/C-2/C-3)。"""
+    from .detect import detect_input
+    r = detect_input(text)
+    click.echo(json.dumps(r.to_dict(), ensure_ascii=False, indent=2))
+
+
+@cli.group()
+def portfolio():
+    """组合分析工具集."""
+    pass
+
+
+@portfolio.command()
+@click.option("--positions", help="code:amount,code:amount,...")
+def concentration(positions: str):
+    """计算 HHI 集中度."""
+    pos = []
+    for item in positions.split(","):
+        code, amount = item.split(":")
+        pos.append({"code": code, "amount": float(amount)})
+    hhi = calculate_concentration(pos)
+    click.echo(f"HHI={hhi:.4f}")
+
+
+@portfolio.command()
+@click.option("--fund-holdings", help="fund_code:stock_code,...")
+@click.option("--direct-stocks", help="stock_code:amount,...")
+def overlap(fund_holdings: str, direct_stocks: str):
+    """检测基金重仓 ∩ 直接持仓的重复."""
+    fh = {}
+    for item in fund_holdings.split(","):
+        fund, stock = item.split(":")
+        fh[fund] = {"top10": [{"code": stock, "ratio": 0.05}]}
+    ds = []
+    for item in direct_stocks.split(","):
+        code, amount = item.split(":")
+        ds.append({"code": code, "amount": float(amount)})
+    overlaps = detect_overlap(fh, ds)
+    click.echo(json.dumps(overlaps, ensure_ascii=False, indent=2))
+
+
+@portfolio.command()
+@click.option("--holdings", help="code:amount:type:penetration,...")
+def balance(holdings: str):
+    """穿透计算股债平衡."""
+    h = []
+    for item in holdings.split(","):
+        parts = item.split(":")
+        h.append({
+            "code": parts[0],
+            "amount": float(parts[1]),
+            "type": parts[2],
+            "stock_penetration": float(parts[3]) if len(parts) > 3 else 0.5,
+        })
+    result = calculate_balance(h)
+    click.echo(json.dumps(result, ensure_ascii=False, indent=2))
 
 
 def main():
