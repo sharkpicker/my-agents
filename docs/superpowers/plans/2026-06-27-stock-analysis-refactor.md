@@ -57,6 +57,8 @@ agents/
   data_quality_auditor.md           # Phase 2: Step 2 数据质量
   portfolio_analyst.md              # Phase 2: Step 2 组合专项
   html_renderer.md                  # Phase 2: Step 8 HTML 渲染
+  # 注:4 个新 agent(input_router / data_quality_auditor / portfolio_analyst / html_renderer)
+  # 统一使用 .md 后缀(不带 .agent),与 22 个 TRAE IDE agent(.agent.md)区分,代表 workflow 层 subagent。
 
 data_tools/
   detect.py                         # Phase 1: 输入类型识别
@@ -909,10 +911,11 @@ git commit -m "feat(agents): add data_quality_auditor agent (Step 2)"
 调用 `python -m data_tools.cli portfolio concentration`:
 
 ```
-HHI = Σ(权重²)
-- HHI < 0.15: 分散
-- 0.15 ≤ HHI < 0.25: 中等
-- HHI ≥ 0.25: 集中(提示风险)
+HHI = Σ(权重²)(占比为小数,值域 0~1)
+- HHI < 0.18: 分散(≥ 6 个等额持仓)
+- 0.18 ≤ HHI < 0.25: 中等分散(4-5 个等额)
+- 0.25 ≤ HHI < 0.50: 中等集中(2-3 个等额)
+- HHI ≥ 0.50: 高度集中(单一持仓占主导)
 ```
 
 输出 Top 5 权重 + HHI + 集中度评级。
