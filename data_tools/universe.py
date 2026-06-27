@@ -33,7 +33,6 @@ from .stock_data import (
     get_concept_blocks,
     get_insider_transactions,
     get_profit_forecast,
-    get_fund_flow,
     _normalize_ticker,
     _http_get,
 )
@@ -49,7 +48,6 @@ DATA_TYPES_DAILY = [
     "fundamentals",
     "indicators_rsi",
     "indicators_macd",
-    "fund_flow",
     "news",
     "dragon_tiger",
 ]
@@ -483,10 +481,6 @@ def _check_result_status(result: str, dtype: str) -> str:
         if "0 条" in r or "未找到" in r:
             return "partial"
 
-    if dtype == "fund_flow":
-        if "无数据" in r or "获取失败" in r:
-            return "failed"
-
     return "ok"
 
 
@@ -518,8 +512,6 @@ def collect_stock(code: str, progress: dict, cfg: dict) -> dict:
                 result = get_indicators(code, "rsi", today, 60, save=True)
             elif dtype == "indicators_macd":
                 result = get_indicators(code, "macd", today, 60, save=True)
-            elif dtype == "fund_flow":
-                result = get_fund_flow(code, include_history=True, save=True)
             elif dtype == "news":
                 result = get_news(code, start_date_news, today, save=True)
             elif dtype == "dragon_tiger":

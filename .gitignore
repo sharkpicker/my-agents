@@ -34,6 +34,7 @@ ENV/
 # 数据和报告
 data/
 reports/
+output/
 
 # 系统文件
 .DS_Store

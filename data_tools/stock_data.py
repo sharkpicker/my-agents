@@ -177,6 +177,11 @@ _EM_MIN_INTERVAL = 1.0
 _em_last_call = [0.0]
 
 
+def _http_get(url, params=None, headers=None, timeout=15, **kwargs):
+    """通用HTTP GET请求封装."""
+    return requests.get(url, params=params, headers=headers, timeout=timeout, **kwargs)
+
+
 def _em_get(url, params=None, headers=None, timeout=15, **kwargs):
     """东方财富统一请求入口: 自动节流 + 会话复用."""
     wait = _EM_MIN_INTERVAL - (time.time() - _em_last_call[0])
@@ -594,10 +599,23 @@ def _get_financial_report_sina(
 
     result = d.get("result", {}).get("data", {})
     items = result.get(source_type, [])
-    if not isinstance(items, list) or not items:
-        return pd.DataFrame()
-
-    df = pd.DataFrame(items)
+    if isinstance(items, list) and items:
+        df = pd.DataFrame(items)
+    else:
+        # 新版返回结构: report_list (科创板等)
+        report_list = result.get("report_list", {})
+        if not report_list:
+            return pd.DataFrame()
+        rows = []
+        for date_str, report in report_list.items():
+            row = {"报告日": date_str}
+            for item in report.get("data", []):
+                title = item.get("item_title", "")
+                value = item.get("item_value", "")
+                if title:
+                    row[title] = value
+            rows.append(row)
+        df = pd.DataFrame(rows)
 
     if curr_date and "报告日" in df.columns:
         df["报告日"] = pd.to_datetime(df["报告日"], errors="coerce")
@@ -1328,3 +1346,20 @@ def get_profit_forecast(
 
     except Exception as e:
         return f"获取 {code} 盈利预测出错: {str(e)}"
+
+
+# ===========================================================================
+# 14. get_fund_flow - 资金流向 (stub)
+# ===========================================================================
+
+def get_fund_flow(
+    ticker: str,
+    include_history: bool = True,
+    save: bool = True,
+) -> str:
+    """获取个股资金流向数据 (stub)."""
+    code = _normalize_ticker(ticker)
+    result = f"# {code} 资金流向数据\n# 数据源: 未实现\n"
+    if save:
+        save_data_file(code, f"fund_flow_{datetime.now().strftime('%Y%m%d')}.md", result)
+    return result
