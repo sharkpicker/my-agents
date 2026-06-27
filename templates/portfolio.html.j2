@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>{{ meta.name }} - 组合诊断报告</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  {% include 'partials/_header.html.j2' %}
+  {% include 'partials/_portfolio_section.html.j2' %}
+
+  {% if portfolio_subtype == 'c3' %}
+  <section class="overlap-section">
+    <h2>⚠️ 重复持仓检查</h2>
+    {% if overlaps %}
+      <table>
+        <thead><tr><th>基金</th><th>股票</th><th>合计暴露</th></tr></thead>
+        <tbody>
+        {% for o in overlaps %}
+          <tr>
+            <td>{{ o.fund }}</td><td>{{ o.stock }}</td>
+            <td>{{ o.combined_exposure_ratio }}%</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p>未发现重复持仓</p>
+    {% endif %}
+  </section>
+  {% endif %}
+
+  <section class="balance-section">
+    <h2>股债平衡</h2>
+    <p>权益占比: {{ balance.equity_ratio }}%</p>
+    <p>债券占比: {{ balance.bond_ratio }}%</p>
+  </section>
+
+  {% include 'partials/_risk_section.html.j2' %}
+
+  <main>
+    <h2>目标配置</h2>
+    {% if target_allocation %}
+      <ul>
+      {% for t in target_allocation %}
+        <li>{{ t.name }}: {{ t.target_ratio }}% (当前 {{ t.current_ratio }}%)</li>
+      {% endfor %}
+      </ul>
+    {% endif %}
+  </main>
+
+  {% include 'partials/_disclaimer.html.j2' %}
+  {% include 'partials/_footer.html.j2' %}
+</body>
+</html>

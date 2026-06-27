@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>{{ meta.name }} ({{ meta.code }}) - 股票分析报告</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  {% include 'partials/_header.html.j2' %}
+  {% include 'partials/_stock_section.html.j2' %}
+  {% include 'partials/_risk_section.html.j2' %}
+  <main>
+    <h2>分析师观点汇总</h2>
+    {% for section in sections %}
+      <article>
+        <h3>{{ section.title }}</h3>
+        <div>{{ section.content }}</div>
+      </article>
+    {% endfor %}
+  </main>
+  {% include 'partials/_disclaimer.html.j2' %}
+  {% include 'partials/_footer.html.j2' %}
+</body>
+</html>

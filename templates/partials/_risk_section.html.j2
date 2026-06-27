@@ -1,0 +1,13 @@
+<section class="risk-section">
+  <h2>风险评估</h2>
+  <div class="risk-cards">
+    {% for r in risk_views %}
+      <div class="risk-card {{ r.view }}">
+        <h3>{{ r.view | title }}</h3>
+        <p>风险等级: {{ r.risk_level }}</p>
+        <p>最大回撤: {{ r.max_drawdown }}%</p>
+        <p>建议仓位: {{ r.suggested_position }}%</p>
+      </div>
+    {% endfor %}
+  </div>
+</section>

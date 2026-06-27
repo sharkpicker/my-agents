@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>{{ meta.name }} ({{ meta.code }}) - 基金分析报告</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  {% include 'partials/_header.html.j2' %}
+  {% include 'partials/_fund_section.html.j2' %}
+  {% include 'partials/_risk_section.html.j2' %}
+  <main>
+    <h2>交易方案</h2>
+    {% if trade %}
+      <ul>
+        <li>标的类型: {{ trade.target_type }} (A/C/ETF)</li>
+        <li>建议仓位: {{ trade.position }}%</li>
+        <li>分批节奏: {{ trade.batch_schedule }}</li>
+        <li>止损位: {{ trade.stop_loss }}</li>
+      </ul>
+    {% endif %}
+  </main>
+  {% include 'partials/_disclaimer.html.j2' %}
+  {% include 'partials/_footer.html.j2' %}
+</body>
+</html>

@@ -1,0 +1,23 @@
+<section class="portfolio-section">
+  <h2>组合分析 ({{ portfolio_subtype }})</h2>
+  {% if portfolio_subtype == 'c1' %}
+    <p>多基金组合 - 共 {{ portfolio.fund_count }} 只基金</p>
+  {% elif portfolio_subtype == 'c2' %}
+    <p>多股票组合 - 共 {{ portfolio.stock_count }} 只股票</p>
+  {% elif portfolio_subtype == 'c3' %}
+    <p>混合组合 - {{ portfolio.fund_count }} 基金 + {{ portfolio.stock_count }} 股票</p>
+  {% endif %}
+  <h3>持仓明细</h3>
+  <table>
+    <thead><tr><th>代码</th><th>名称</th><th>类型</th><th>金额</th><th>占比</th><th>收益</th></tr></thead>
+    <tbody>
+    {% for p in portfolio.positions %}
+      <tr>
+        <td>{{ p.code }}</td><td>{{ p.name }}</td><td>{{ p.type }}</td>
+        <td>{{ p.amount }}</td><td>{{ p.ratio }}%</td>
+        <td class="{{ 'positive' if p.holding_return > 0 else 'negative' }}">{{ p.holding_return }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
