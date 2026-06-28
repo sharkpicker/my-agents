@@ -222,3 +222,68 @@ def diff_fund_list(old: list, new: list) -> dict:
         "removed": sorted(old_codes - new_codes),
         "kept": sorted(old_codes & new_codes),
     }
+
+
+EMPTY_PROGRESS_RECORD = {
+    "last_sync_at": None,
+    "last_status": None,
+    "fail_count": 0,
+    "cooldown_until": None,
+    "fields": {},
+}
+
+
+def load_progress() -> dict:
+    """读取 _meta/universe_progress.json；不存在时返回空 dict。"""
+    path = get_progress_path()
+    if not os.path.exists(path):
+        return {}
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        logger.error("加载进度文件失败: %s", e)
+        return {}
+
+
+def save_progress(progress: dict) -> None:
+    """保存进度到 _meta/universe_progress.json。"""
+    _ensure_meta_dir()
+    path = get_progress_path()
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(progress, f, ensure_ascii=False, indent=2)
+    logger.info("进度已保存: %d 条", len(progress))
+
+
+def update_progress(
+    code: str,
+    last_status: str,
+    fail_count: int,
+    fields: dict,
+    cooldown_until: Optional[str] = None,
+) -> None:
+    """更新单只基金的进度记录并立即落盘。"""
+    progress = load_progress()
+    existing = progress.get(code, dict(EMPTY_PROGRESS_RECORD))
+    merged_fields = dict(existing.get("fields") or {})
+    merged_fields.update(fields)
+    existing["last_sync_at"] = datetime.now().isoformat(timespec="seconds")
+    existing["last_status"] = last_status
+    existing["fail_count"] = fail_count
+    existing["cooldown_until"] = cooldown_until
+    existing["fields"] = merged_fields
+    progress[code] = existing
+    save_progress(progress)
+
+
+def is_in_cooldown(record: Optional[dict], _config: dict) -> bool:
+    """判定该基金当前是否处于冷却期。"""
+    if not record:
+        return False
+    until = record.get("cooldown_until")
+    if not until:
+        return False
+    try:
+        return datetime.fromisoformat(until) > datetime.now()
+    except Exception:
+        return False
