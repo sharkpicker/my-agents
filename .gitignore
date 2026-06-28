@@ -42,3 +42,6 @@ Thumbs.db
 
 # 日志
 *.log
+
+# Git worktrees (本地隔离工作区)
+.worktrees/
