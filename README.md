@@ -262,6 +262,19 @@ python -m data_tools.cli universe update 000001 # 强制更新单只股票
 python -m data_tools.cli universe refresh-list  # 刷新股票列表
 ```
 
+### 全量场外开放式基金采集
+
+```bash
+python -m data_tools.cli fund universe init          # 初始化：拉取并过滤场外开放式基金列表
+python -m data_tools.cli fund universe status        # 查看采集进度
+python -m data_tools.cli fund universe sync          # 执行一次增量采集
+python -m data_tools.cli fund universe sync --quota 200 --force
+python -m data_tools.cli fund universe update 000001 # 强制更新单只基金
+python -m data_tools.cli fund universe refresh-list  # 刷新基金列表
+```
+
+基金列表自动剔除 5/15/16/18 字开头的场内 ETF/LOF/封闭式基金，剩余场外开放式基金（包含定期开放债基）保存到 `data/funds/_meta/fund_list.json`。
+
 ### 工具命令
 
 ```bash
@@ -327,6 +340,10 @@ data/
 │       ├── insider_transactions_<日期>.txt # 股东研究
 │       └── profit_forecast_<日期>.md       # 盈利预测
 ├── funds/                                  # 公募基金(按代码分子目录)
+│   ├── _meta/                              # 基金元数据
+│   │   ├── fund_list.json                  # 场外开放式基金列表
+│   │   ├── universe_progress.json          # 采集进度追踪
+│   │   └── universe_config.json            # 采集配置
 │   └── <基金代码>/                         # 例如 data/funds/001717/
 │       ├── nav_<开始日期>_<结束日期>.csv   # 历史净值
 │       ├── fund_info_<日期>.txt            # 基金概况
@@ -490,7 +507,7 @@ python -m data_tools.cli detect "001717"
 ## 测试
 
 ```bash
-pytest -v              # 33 个测试,全部 < 30 秒
+pytest -v              # 全部测试 < 30 秒
 pytest tests/e2e -v    # 仅 5 个 E2E
 ```
 
