@@ -287,3 +287,75 @@ def is_in_cooldown(record: Optional[dict], _config: dict) -> bool:
         return datetime.fromisoformat(until) > datetime.now()
     except Exception:
         return False
+
+
+from . import fund_data
+
+
+def _sleep_jitter(min_s: float, max_s: float) -> None:
+    """在 [min_s, max_s] 之间随机 sleep，min_s == max_s == 0 时直接返回。"""
+    if max_s <= 0:
+        return
+    time.sleep(random.uniform(min_s, max_s))
+
+
+def _compute_window(days: int) -> tuple:
+    """返回 (start_date, end_date) ISO 字符串。"""
+    end = datetime.now().date()
+    start = end - timedelta(days=days)
+    return start.isoformat(), end.isoformat()
+
+
+_FIELD_FETCHERS = [
+    ("nav",         lambda code, cfg: fund_data.get_fund_nav(code, *_compute_window(cfg["nav_lookback_days"]))),
+    ("info",        lambda code, cfg: fund_data.get_fund_info(code)),
+    ("holdings",    lambda code, cfg: fund_data.get_fund_holdings(code)),
+    ("manager",     lambda code, cfg: fund_data.get_fund_manager(code)),
+    ("performance", lambda code, cfg: fund_data.get_fund_performance(code)),
+    ("flows",       lambda code, cfg: fund_data.get_fund_flows(code)),
+    ("news",        lambda code, cfg: fund_data.get_fund_news(code, *_compute_window(cfg["news_lookback_days"]))),
+]
+
+
+def sync_single_fund(code: str, config: dict) -> dict:
+    """采集单只基金全部 7 个字段，返回进度记录 dict。
+
+    返回结构:
+        {
+            "last_status": "ok" | "partial" | "failed",
+            "fail_count": int (0/1 二值标记，本轮是否失败),
+            "fields": {"nav": "ok", "info": "failed", ...},
+            "cooldown_until": None | "ISO timestamp",
+        }
+    """
+    fields = {}
+    failed_any = False
+    all_failed = True
+    for name, fetcher in _FIELD_FETCHERS:
+        try:
+            fetcher(code, config)
+            fields[name] = "ok"
+            all_failed = False
+        except Exception as e:
+            logger.warning("[%s] 字段 %s 采集失败: %s", code, name, e)
+            fields[name] = "failed"
+            failed_any = True
+        _sleep_jitter(config.get("field_interval_min", 0.5),
+                      config.get("field_interval_max", 1.5))
+
+    if not failed_any:
+        last_status = "ok"
+        fail_count = 0
+    elif all_failed:
+        last_status = "failed"
+        fail_count = 1
+    else:
+        last_status = "partial"
+        fail_count = 1
+
+    return {
+        "last_status": last_status,
+        "fail_count": fail_count,
+        "fields": fields,
+        "cooldown_until": None,
+    }
