@@ -429,7 +429,10 @@ def sync(quota: Optional[int] = None, force: bool = False) -> dict:
     for code, _ in picked:
         result = sync_single_fund(code, config)
         prev_fail = (progress.get(code) or {}).get("fail_count") or 0
-        new_fail_count = prev_fail + result["fail_count"]
+        if result["last_status"] == "ok":
+            new_fail_count = 0
+        else:
+            new_fail_count = prev_fail + result["fail_count"]
         cooldown_until = None
         if _should_enter_cooldown(0, new_fail_count, config):
             cooldown_until = _cooldown_until(config)
