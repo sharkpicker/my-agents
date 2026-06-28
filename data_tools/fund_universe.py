@@ -359,3 +359,106 @@ def sync_single_fund(code: str, config: dict) -> dict:
         "fields": fields,
         "cooldown_until": None,
     }
+
+
+def refresh_fund_list() -> int:
+    """refresh-list 子命令：全量重写 _meta/fund_list.json，返回基金总数。"""
+    funds = fetch_fund_list()
+    save_fund_list(funds)
+    return len(funds)
+
+
+def _should_enter_cooldown(prev_fail_count: int, new_fail_count: int, config: dict) -> bool:
+    """本轮累计失败次数是否达到 max_fail_count 阈值。"""
+    return new_fail_count >= config.get("max_fail_count", 3)
+
+
+def _cooldown_until(config: dict) -> str:
+    return (datetime.now() + timedelta(days=config.get("fail_cooldown_days", 7))).isoformat()
+
+
+def sync(quota: Optional[int] = None, force: bool = False) -> dict:
+    """同步主循环：按配额/优先级/冷却规则执行单只采集。
+
+    progress 文件语义：仅保留本次 sync 周期涉及的基金记录。
+    跨周期的累计失败通过 progress 中的 cooldown_until 字段间接保留。
+
+    Returns:
+        {
+            "status": "ok" | "partial" | "error",
+            "total": int,
+            "success": int,
+            "failed": int,
+        }
+    """
+    config = load_config()
+    quota = quota if quota is not None else config.get("daily_quota", 200)
+
+    funds = load_fund_list()
+    if not funds:
+        try:
+            refresh_fund_list()
+            funds = load_fund_list()
+        except Exception as e:
+            logger.error("fund_list.json 缺失且自动 init 失败: %s", e)
+            return {"status": "error", "total": 0, "success": 0, "failed": 0,
+                    "message": f"fund_list.json 缺失且自动 init 失败: {e}"}
+
+    if not funds:
+        return {"status": "error", "total": 0, "success": 0, "failed": 0,
+                "message": "基金列表为空"}
+
+    progress = load_progress()
+
+    candidates = []
+    for f in funds:
+        code = f.get("code")
+        if not code:
+            continue
+        rec = progress.get(code)
+        if not force and is_in_cooldown(rec, config):
+            continue
+        candidates.append((code, (rec or {}).get("last_sync_at") or ""))
+
+    candidates.sort(key=lambda x: x[1])
+    picked = candidates[:quota]
+
+    new_progress: dict = {}
+    success = 0
+    failed = 0
+    for code, _ in picked:
+        result = sync_single_fund(code, config)
+        prev_fail = (progress.get(code) or {}).get("fail_count") or 0
+        new_fail_count = prev_fail + result["fail_count"]
+        cooldown_until = None
+        if _should_enter_cooldown(0, new_fail_count, config):
+            cooldown_until = _cooldown_until(config)
+
+        existing = progress.get(code, dict(EMPTY_PROGRESS_RECORD))
+        merged_fields = dict(existing.get("fields") or {})
+        merged_fields.update(result["fields"])
+        new_progress[code] = {
+            "last_sync_at": datetime.now().isoformat(timespec="seconds"),
+            "last_status": result["last_status"],
+            "fail_count": new_fail_count,
+            "cooldown_until": cooldown_until,
+            "fields": merged_fields,
+        }
+
+        if result["last_status"] == "ok":
+            success += 1
+        else:
+            failed += 1
+        _sleep_jitter(config.get("fund_interval_min", 1.5),
+                      config.get("fund_interval_max", 3.5))
+
+    save_progress(new_progress)
+
+    if failed == 0:
+        status = "ok"
+    elif success > 0:
+        status = "partial"
+    else:
+        status = "error"
+
+    return {"status": status, "total": len(picked), "success": success, "failed": failed}
