@@ -465,3 +465,57 @@ def sync(quota: Optional[int] = None, force: bool = False) -> dict:
         status = "error"
 
     return {"status": status, "total": len(picked), "success": success, "failed": failed}
+
+
+def show_status() -> dict:
+    """输出当前调度器状态摘要。"""
+    funds = load_fund_list()
+    progress = load_progress()
+    config = load_config()
+
+    total_funds = len(funds)
+    in_cooldown = 0
+    needs_sync = 0
+    status_breakdown = {"ok": 0, "partial": 0, "failed": 0, "unknown": 0}
+    last_run = None
+
+    progressed_codes = set(progress.keys())
+    for code in progressed_codes:
+        rec = progress[code]
+        if is_in_cooldown(rec, config):
+            in_cooldown += 1
+        st = rec.get("last_status")
+        if st in status_breakdown:
+            status_breakdown[st] += 1
+        else:
+            status_breakdown["unknown"] += 1
+        ts = rec.get("last_sync_at")
+        if ts and (last_run is None or ts > last_run):
+            last_run = ts
+
+    needs_sync = total_funds - len(progressed_codes)
+    for code in progressed_codes:
+        rec = progress[code]
+        if not is_in_cooldown(rec, config) and rec.get("last_status") != "ok":
+            needs_sync += 1
+
+    result = {
+        "total_funds": total_funds,
+        "in_cooldown": in_cooldown,
+        "needs_sync": needs_sync,
+        "last_run": last_run,
+        "status_breakdown": status_breakdown,
+        "progress_size": len(progress),
+    }
+
+    print(f"=== Fund Universe 状态 ===")
+    print(f"基金总数     : {result['total_funds']}")
+    print(f"已同步进度   : {result['progress_size']}")
+    print(f"冷却中       : {result['in_cooldown']}")
+    print(f"待同步       : {result['needs_sync']}")
+    print(f"最近同步时间 : {result['last_run'] or 'N/A'}")
+    print(f"状态分布     : ok={status_breakdown['ok']} "
+          f"partial={status_breakdown['partial']} "
+          f"failed={status_breakdown['failed']} "
+          f"unknown={status_breakdown['unknown']}")
+    return result
