@@ -46,8 +46,10 @@ def test_sync_skips_cooldown(monkeypatch, tmp_path):
                                 "last_status": "failed", "fields": {}, "last_sync_at": None}})
 
     result = sync(quota=10, force=False)
-    assert "000001" not in load_progress()  # 冷却中没采
-    assert "000002" in load_progress()
+    progress = load_progress()
+    assert "000001" in progress  # 冷却中跳过，但旧记录保留
+    assert progress["000001"]["cooldown_until"] == until  # cooldown 信息未丢
+    assert "000002" in progress  # 本次选中，正常写入
 
 
 def test_sync_force_overrides_cooldown(monkeypatch, tmp_path):
@@ -84,8 +86,10 @@ def test_sync_priority_oldest_first(monkeypatch, tmp_path):
 
     result = sync(quota=1, force=True)
     # 只采了 1 只，应该是 last_sync_at 为空的 000002（最旧）
-    assert "000002" in load_progress()
-    assert "000001" not in load_progress()
+    # 未被选中的 000001 记录应保留
+    progress = load_progress()
+    assert "000002" in progress
+    assert "000001" in progress  # 跨周期保留
 
 
 def test_sync_failure_triggers_cooldown(monkeypatch, tmp_path):

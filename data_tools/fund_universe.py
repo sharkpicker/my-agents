@@ -455,7 +455,9 @@ def sync(quota: Optional[int] = None, force: bool = False) -> dict:
         _sleep_jitter(config.get("fund_interval_min", 1.5),
                       config.get("fund_interval_max", 3.5))
 
-    save_progress(new_progress)
+    merged_progress = dict(progress)
+    merged_progress.update(new_progress)
+    save_progress(merged_progress)
 
     if failed == 0:
         status = "ok"
