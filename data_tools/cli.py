@@ -289,7 +289,10 @@ def cmd_fund_universe_sync(args):
     if result["status"] == "error":
         print(f"错误: {result.get('message')}")
         sys.exit(1)
-    print(f"采集完成: 共 {result['total']} 只，成功 {result['success']}，失败 {result['failed']}（{result['status']}）")
+    if result["status"] == "partial":
+        print(f"采集完成(部分失败): 共 {result['total']} 只，成功 {result['success']}，失败 {result['failed']}")
+        sys.exit(2)
+    print(f"采集完成: 共 {result['total']} 只，全部成功")
 
 
 def cmd_fund_universe_update(args):
@@ -307,6 +310,8 @@ def cmd_fund_universe_update(args):
     print(f"{args.symbol} 更新完成: {single['last_status']}")
     for k, v in single["fields"].items():
         print(f"  {k}: {v}")
+    if single["last_status"] != "ok":
+        sys.exit(2)
 
 
 def cmd_fund_universe_refresh_list(args):
@@ -355,7 +360,7 @@ def universe():
     pass
 
 
-@fund_universe := universe.command("init")
+@universe.command("init")
 def fund_universe_init():
     """初始化:拉取并保存场外开放式基金列表."""
     from . import fund_universe as fu
@@ -363,7 +368,7 @@ def fund_universe_init():
     click.echo(f"初始化成功，共获取 {count} 只场外开放式基金")
 
 
-@fund_universe := universe.command("status")
+@universe.command("status")
 def fund_universe_status():
     """查看场外开放式基金采集进度."""
     from . import fund_universe as fu
@@ -380,7 +385,10 @@ def sync(quota, force):
     if result["status"] == "error":
         click.echo(f"错误: {result.get('message')}")
         sys.exit(1)
-    click.echo(f"采集完成: 共 {result['total']} 只，成功 {result['success']}，失败 {result['failed']}（{result['status']}）")
+    if result["status"] == "partial":
+        click.echo(f"采集完成(部分失败): 共 {result['total']} 只，成功 {result['success']}，失败 {result['failed']}")
+        sys.exit(2)
+    click.echo(f"采集完成: 共 {result['total']} 只，全部成功")
 
 
 @universe.command()
@@ -400,6 +408,8 @@ def update(symbol):
     click.echo(f"{symbol} 更新完成: {single['last_status']}")
     for k, v in single["fields"].items():
         click.echo(f"  {k}: {v}")
+    if single["last_status"] != "ok":
+        sys.exit(2)
 
 
 @universe.command("refresh-list")

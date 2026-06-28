@@ -45,6 +45,26 @@ def test_cli_fund_universe_sync_invokes_sync(monkeypatch):
     assert called["args"] == (5, True)
 
 
+def test_cli_fund_universe_sync_partial_returns_exit_2(monkeypatch):
+    def fake_sync(quota=None, force=False):
+        return {"status": "partial", "total": 3, "success": 2, "failed": 1}
+    monkeypatch.setattr("data_tools.fund_universe.sync", fake_sync)
+    runner = CliRunner()
+    result = runner.invoke(cli, ["fund", "universe", "sync"])
+    assert result.exit_code == 2
+    assert "部分失败" in result.output
+
+
+def test_cli_fund_universe_sync_error_returns_exit_1(monkeypatch):
+    def fake_sync(quota=None, force=False):
+        return {"status": "error", "message": "列表缺失", "total": 0, "success": 0, "failed": 0}
+    monkeypatch.setattr("data_tools.fund_universe.sync", fake_sync)
+    runner = CliRunner()
+    result = runner.invoke(cli, ["fund", "universe", "sync"])
+    assert result.exit_code == 1
+    assert "列表缺失" in result.output
+
+
 def test_cli_fund_universe_update_runs_for_code(monkeypatch):
     called = {"code": None}
     def fake_sync_single(code, config):
@@ -56,6 +76,18 @@ def test_cli_fund_universe_update_runs_for_code(monkeypatch):
     result = runner.invoke(cli, ["fund", "universe", "update", "000001"])
     assert result.exit_code == 0
     assert called["code"] == "000001"
+
+
+def test_cli_fund_universe_update_partial_returns_exit_2(monkeypatch):
+    def fake_sync_single(code, config):
+        return {"last_status": "partial", "fail_count": 1,
+                "fields": {"nav": "ok", "info": "failed"}, "cooldown_until": None}
+    monkeypatch.setattr("data_tools.fund_universe.sync_single_fund", fake_sync_single)
+    monkeypatch.setattr("data_tools.fund_universe.update_progress", lambda *a, **kw: None)
+    runner = CliRunner()
+    result = runner.invoke(cli, ["fund", "universe", "update", "000001"])
+    assert result.exit_code == 2
+    assert "partial" in result.output
 
 
 def test_cli_fund_universe_refresh_list_invokes_refresh(monkeypatch):
