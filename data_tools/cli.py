@@ -265,6 +265,57 @@ def cmd_fund_global_news(args):
     print(fund_data.get_fund_global_news(args.symbol, limit=args.limit))
 
 
+def cmd_fund_universe_init(args):
+    """初始化全量场外开放式基金采集：拉取并保存基金列表。"""
+    from . import fund_universe
+    try:
+        count = fund_universe.refresh_fund_list()
+    except Exception as e:
+        print(f"初始化失败: {e}")
+        sys.exit(1)
+    print(f"初始化成功，共获取 {count} 只场外开放式基金")
+
+
+def cmd_fund_universe_status(args):
+    """查看场外开放式基金采集进度."""
+    from . import fund_universe
+    fund_universe.show_status()
+
+
+def cmd_fund_universe_sync(args):
+    """执行一次基金增量采集."""
+    from . import fund_universe
+    result = fund_universe.sync(quota=args.quota, force=args.force)
+    if result["status"] == "error":
+        print(f"错误: {result.get('message')}")
+        sys.exit(1)
+    print(f"采集完成: 共 {result['total']} 只，成功 {result['success']}，失败 {result['failed']}（{result['status']}）")
+
+
+def cmd_fund_universe_update(args):
+    """强制更新单只基金."""
+    from . import fund_universe
+    config = fund_universe.load_config()
+    single = fund_universe.sync_single_fund(args.symbol, config)
+    fund_universe.update_progress(
+        args.symbol,
+        last_status=single["last_status"],
+        fail_count=single["fail_count"],
+        fields=single["fields"],
+        cooldown_until=single["cooldown_until"],
+    )
+    print(f"{args.symbol} 更新完成: {single['last_status']}")
+    for k, v in single["fields"].items():
+        print(f"  {k}: {v}")
+
+
+def cmd_fund_universe_refresh_list(args):
+    """刷新基金列表."""
+    from . import fund_universe
+    count = fund_universe.refresh_fund_list()
+    print(f"基金列表已刷新，共 {count} 只")
+
+
 # ---------------------------------------------------------------------------
 # Click 接口层（Phase 2 / Task 2.5: detect + portfolio）
 # 与上方 argparse 入口并存,供测试与新子命令调用
@@ -290,6 +341,73 @@ def detect(text: str):
     from .detect import detect_input
     r = detect_input(text)
     click.echo(json.dumps(r.to_dict(), ensure_ascii=False, indent=2))
+
+
+@cli.group()
+def fund():
+    """基金数据获取工具集."""
+    pass
+
+
+@fund.group()
+def universe():
+    """全量场外开放式基金采集调度器."""
+    pass
+
+
+@fund_universe := universe.command("init")
+def fund_universe_init():
+    """初始化:拉取并保存场外开放式基金列表."""
+    from . import fund_universe as fu
+    count = fu.refresh_fund_list()
+    click.echo(f"初始化成功，共获取 {count} 只场外开放式基金")
+
+
+@fund_universe := universe.command("status")
+def fund_universe_status():
+    """查看场外开放式基金采集进度."""
+    from . import fund_universe as fu
+    fu.show_status()
+
+
+@universe.command()
+@click.option("--quota", type=int, default=None, help="今日采集配额（覆盖配置）")
+@click.option("--force", is_flag=True, help="强制执行，忽略冷却中的基金")
+def sync(quota, force):
+    """执行一次场外开放式基金增量采集."""
+    from . import fund_universe as fu
+    result = fu.sync(quota=quota, force=force)
+    if result["status"] == "error":
+        click.echo(f"错误: {result.get('message')}")
+        sys.exit(1)
+    click.echo(f"采集完成: 共 {result['total']} 只，成功 {result['success']}，失败 {result['failed']}（{result['status']}）")
+
+
+@universe.command()
+@click.argument("symbol")
+def update(symbol):
+    """强制更新单只基金."""
+    from . import fund_universe as fu
+    config = fu.load_config()
+    single = fu.sync_single_fund(symbol, config)
+    fu.update_progress(
+        symbol,
+        last_status=single["last_status"],
+        fail_count=single["fail_count"],
+        fields=single["fields"],
+        cooldown_until=single["cooldown_until"],
+    )
+    click.echo(f"{symbol} 更新完成: {single['last_status']}")
+    for k, v in single["fields"].items():
+        click.echo(f"  {k}: {v}")
+
+
+@universe.command("refresh-list")
+def refresh_list():
+    """刷新基金列表."""
+    from . import fund_universe as fu
+    count = fu.refresh_fund_list()
+    click.echo(f"基金列表已刷新，共 {count} 只")
 
 
 @cli.group()
@@ -521,6 +639,33 @@ def main():
     pf2.add_argument("symbol", help="基金代码（用于标识，实际拉取全局新闻）")
     pf2.add_argument("--limit", type=int, default=20, help="新闻条数")
     pf2.set_defaults(func=cmd_fund_global_news)
+
+    # fund universe - 全量场外开放式基金采集
+    pfu = fund_sub.add_parser("universe", help="全量场外开放式基金采集管理")
+    fund_universe_sub = pfu.add_subparsers(dest="fund_universe_cmd", help="可用子命令")
+
+    # fund universe init
+    pfu2 = fund_universe_sub.add_parser("init", help="初始化：拉取并保存基金列表")
+    pfu2.set_defaults(func=cmd_fund_universe_init)
+
+    # fund universe status
+    pfu2 = fund_universe_sub.add_parser("status", help="查看基金采集进度")
+    pfu2.set_defaults(func=cmd_fund_universe_status)
+
+    # fund universe sync
+    pfu2 = fund_universe_sub.add_parser("sync", help="执行一次基金增量采集")
+    pfu2.add_argument("--quota", type=int, default=None, help="今日采集配额（覆盖配置）")
+    pfu2.add_argument("--force", action="store_true", help="强制执行，忽略冷却中的基金")
+    pfu2.set_defaults(func=cmd_fund_universe_sync)
+
+    # fund universe update
+    pfu2 = fund_universe_sub.add_parser("update", help="强制更新单只基金")
+    pfu2.add_argument("symbol", help="基金代码 (6位)")
+    pfu2.set_defaults(func=cmd_fund_universe_update)
+
+    # fund universe refresh-list
+    pfu2 = fund_universe_sub.add_parser("refresh-list", help="刷新基金列表")
+    pfu2.set_defaults(func=cmd_fund_universe_refresh_list)
 
     args = parser.parse_args()
     if not args.command:
