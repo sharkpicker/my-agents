@@ -40,9 +40,10 @@ def test_is_offexchange_fund_periodic_open_kept():
 def test_fetch_fund_list_from_primary_parses_js_array(monkeypatch):
     """主端点返回 JS 数组格式时正确解析。"""
     sample = (
-        'var RANKDATA = [{"code":"000001","name":"华夏成长","type":"混合型-偏股"},'
-        '{"code":"510300","name":"沪深300ETF","type":"指数型-股票"},'
-        '{"code":"005753","name":"6个月定开债","type":"债券型"}];'
+        'var db={"chars":["基金代码","基金简称"],'
+        '"datas":[["000001","华夏成长"],'
+        '["510300","沪深300ETF"],'
+        '["005753","6个月定开债"]]};'
     )
     class FakeResp:
         status_code = 200
@@ -61,7 +62,7 @@ def test_fetch_fund_list_uses_fallback_when_primary_too_few(monkeypatch):
     """主端点返回 < 5000 条时降级到备用端点。"""
     class FakeRespPrimary:
         status_code = 200
-        text = 'var RANKDATA = [{"code":"000001","name":"X","type":"Y"}];'
+        text = 'var db={"chars":["代码","名称"],"datas":[["000001","X"]]};'
         def json(self): return {}
     class FakeRespFallback:
         status_code = 200

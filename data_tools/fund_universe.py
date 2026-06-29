@@ -37,6 +37,9 @@ DEFAULT_CONFIG = {
     "max_fail_count": 3,
     "news_lookback_days": 90,
     "nav_lookback_days": 365,
+    "sync_strategy": "priority",
+    "cooldown_steps": [1, 3, 7, 14],
+    "skip_ok_fields": True,
 }
 
 
@@ -149,6 +152,7 @@ def _parse_primary_response(text: str) -> list:
     data_str = text
     if data_str.startswith("var db="):
         data_str = data_str[7:]
+    data_str = data_str.strip().rstrip(";")
 
     def _add_quotes(s: str) -> str:
         result = []
@@ -565,8 +569,14 @@ _FIELD_FETCHERS = [
 ]
 
 
-def sync_single_fund(code: str, config: dict) -> dict:
-    """采集单只基金全部 7 个字段，返回进度记录 dict。
+def sync_single_fund(code: str, config: dict, existing_fields: dict | None = None, force: bool = False) -> dict:
+    """采集单只基金字段，支持跳过已 ok 的字段。
+
+    Args:
+        code: 基金代码
+        config: 配置 dict
+        existing_fields: 已有字段状态 {"nav": "ok", ...}
+        force: 是否强制刷新所有字段
 
     返回结构:
         {
@@ -579,7 +589,13 @@ def sync_single_fund(code: str, config: dict) -> dict:
     fields = {}
     failed_any = False
     all_failed = True
+    skip_ok = config.get("skip_ok_fields", True) and not force
     for name, fetcher in _FIELD_FETCHERS:
+        prev_status = (existing_fields or {}).get(name)
+        if skip_ok and prev_status == "ok":
+            fields[name] = "ok"
+            all_failed = False
+            continue
         try:
             fetcher(code, config)
             fields[name] = "ok"
@@ -617,12 +633,22 @@ def refresh_fund_list() -> int:
 
 
 def _should_enter_cooldown(prev_fail_count: int, new_fail_count: int, config: dict) -> bool:
-    """本轮累计失败次数是否达到 max_fail_count 阈值。"""
-    return new_fail_count >= config.get("max_fail_count", 3)
+    """累计失败次数 > 0 就进入冷却(按阶梯计算冷却天数)。"""
+    return new_fail_count > 0
 
 
-def _cooldown_until(config: dict) -> str:
-    return (datetime.now() + timedelta(days=config.get("fail_cooldown_days", 7))).isoformat()
+def _cooldown_days(fail_count: int, config: dict) -> int:
+    """根据累计失败次数计算冷却天数(指数阶梯)。"""
+    steps = config.get("cooldown_steps", [1, 3, 7, 14])
+    if fail_count <= 0:
+        return 0
+    idx = min(fail_count - 1, len(steps) - 1)
+    return steps[idx]
+
+
+def _cooldown_until(fail_count: int, config: dict) -> str:
+    days = _cooldown_days(fail_count, config)
+    return (datetime.now() + timedelta(days=days)).isoformat()
 
 
 def sync(quota: Optional[int] = None, force: bool = False) -> dict:
@@ -666,16 +692,25 @@ def sync(quota: Optional[int] = None, force: bool = False) -> dict:
         rec = progress.get(code)
         if not force and is_in_cooldown(rec, config):
             continue
-        candidates.append((code, (rec or {}).get("last_sync_at") or ""))
+        if not rec or not rec.get("last_sync_at"):
+            priority = 0
+        elif rec.get("last_status") in ("partial", "failed"):
+            priority = 1
+        else:
+            priority = 2
+        last_sync = (rec or {}).get("last_sync_at") or ""
+        candidates.append((code, priority, last_sync))
 
-    candidates.sort(key=lambda x: x[1])
-    picked = candidates[:quota]
+    candidates.sort(key=lambda x: (x[1], x[2]))
+    picked = [c[0] for c in candidates[:quota]]
 
     new_progress: dict = {}
     success = 0
     failed = 0
-    for code, _ in picked:
-        result = sync_single_fund(code, config)
+    for code in picked:
+        existing = progress.get(code, dict(EMPTY_PROGRESS_RECORD))
+        existing_fields = existing.get("fields") or {}
+        result = sync_single_fund(code, config, existing_fields, force=force)
         prev_fail = (progress.get(code) or {}).get("fail_count") or 0
         if result["last_status"] == "ok":
             new_fail_count = 0
@@ -683,9 +718,8 @@ def sync(quota: Optional[int] = None, force: bool = False) -> dict:
             new_fail_count = prev_fail + result["fail_count"]
         cooldown_until = None
         if _should_enter_cooldown(0, new_fail_count, config):
-            cooldown_until = _cooldown_until(config)
+            cooldown_until = _cooldown_until(new_fail_count, config)
 
-        existing = progress.get(code, dict(EMPTY_PROGRESS_RECORD))
         merged_fields = dict(existing.get("fields") or {})
         merged_fields.update(result["fields"])
         new_progress[code] = {
@@ -727,6 +761,7 @@ def show_status() -> dict:
     in_cooldown = 0
     needs_sync = 0
     status_breakdown = {"ok": 0, "partial": 0, "failed": 0, "unknown": 0}
+    field_stats = {}
     last_run = None
 
     progressed_codes = set(progress.keys())
@@ -742,6 +777,14 @@ def show_status() -> dict:
         ts = rec.get("last_sync_at")
         if ts and (last_run is None or ts > last_run):
             last_run = ts
+        fields = rec.get("fields") or {}
+        for fname, fstatus in fields.items():
+            if fname not in field_stats:
+                field_stats[fname] = {"ok": 0, "failed": 0}
+            if fstatus == "ok":
+                field_stats[fname]["ok"] += 1
+            elif fstatus == "failed":
+                field_stats[fname]["failed"] += 1
 
     needs_sync = total_funds - len(progressed_codes)
     for code in progressed_codes:
@@ -756,6 +799,7 @@ def show_status() -> dict:
         "last_run": last_run,
         "status_breakdown": status_breakdown,
         "progress_size": len(progress),
+        "field_stats": field_stats,
     }
 
     print(f"=== Fund Universe 状态 ===")
@@ -768,4 +812,11 @@ def show_status() -> dict:
           f"partial={status_breakdown['partial']} "
           f"failed={status_breakdown['failed']} "
           f"unknown={status_breakdown['unknown']}")
+    if field_stats:
+        print(f"字段级统计   :")
+        for fname, fstats in sorted(field_stats.items()):
+            total = fstats["ok"] + fstats["failed"]
+            pct = (fstats["ok"] / total * 100) if total > 0 else 0
+            print(f"  {fname:12s}: ok={fstats['ok']:5d} "
+                  f"failed={fstats['failed']:4d} ({pct:5.1f}%)")
     return result
