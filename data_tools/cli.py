@@ -364,6 +364,17 @@ def cmd_screener_replacement(args):
     print(json.dumps(out, ensure_ascii=False, indent=2))
 
 
+def cmd_quality_score(args):
+    """argparse 版: 读 7 分析师报告,输出 quality_score JSON."""
+    out = portfolio_rebalance.parse_quality_from_reports(
+        code=args.code,
+        reports_dir=args.reports_dir,
+        category=args.category,
+        date_str=args.date,
+    )
+    print(json.dumps(out, ensure_ascii=False, indent=2))
+
+
 # ---------------------------------------------------------------------------
 # 组合分析:传统 3 个 + 新增强 3 个
 # ---------------------------------------------------------------------------
@@ -820,6 +831,27 @@ def screener_replacement(categories, excluded_codes, preferred, excluded, per_ca
 
 
 # ---------------------------------------------------------------------------
+# 候选基金深度评分(quality-score)
+# ---------------------------------------------------------------------------
+
+
+@cli.command("quality-score")
+@click.option("--code", required=True, help="6 位基金代码")
+@click.option("--reports-dir", required=True, help="报告目录(包含 <code>_<role>.md)")
+@click.option("--category", required=True, help="资产大类,如 bond/equity/...")
+@click.option("--date", required=True, help="日期 YYYY-MM-DD")
+def quality_score(code, reports_dir, category, date):
+    """读 7 分析师报告,输出 quality_score JSON(0-100)。"""
+    out = portfolio_rebalance.parse_quality_from_reports(
+        code=code,
+        reports_dir=reports_dir,
+        category=category,
+        date_str=date,
+    )
+    click.echo(json.dumps(out, ensure_ascii=False, indent=2))
+
+
+# ---------------------------------------------------------------------------
 # 端到端再平衡方案
 # ---------------------------------------------------------------------------
 
@@ -1156,6 +1188,14 @@ def main():
     pscr2.add_argument("--universe", default=None)
     pscr2.add_argument("--risk-level", type=int, default=3)
     pscr2.set_defaults(func=cmd_screener_replacement)
+
+    # quality-score - 候选基金深度评分(读 7 分析师报告)
+    pqs = subparsers.add_parser("quality-score", help="读 7 分析师报告,输出 quality_score JSON")
+    pqs.add_argument("--code", required=True, help="6 位基金代码")
+    pqs.add_argument("--reports-dir", required=True, help="报告目录(包含 <code>_<role>.md)")
+    pqs.add_argument("--category", required=True, help="资产大类,如 bond/equity/...")
+    pqs.add_argument("--date", required=True, help="日期 YYYY-MM-DD")
+    pqs.set_defaults(func=cmd_quality_score)
 
     args = parser.parse_args()
     if not args.command:
