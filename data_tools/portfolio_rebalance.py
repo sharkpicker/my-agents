@@ -16,6 +16,7 @@
 from __future__ import annotations
 
 import json
+import math
 import os
 import re
 from dataclasses import asdict, dataclass, field
@@ -465,6 +466,45 @@ def parse_quality_from_reports(
         "report_paths": paths,
         "missing_dimensions": missing_dims,
     }
+
+
+# ---------------------------------------------------------------------------
+# 5. 评分融合:name_score × w_name + quality_score × w_quality
+# ---------------------------------------------------------------------------
+
+
+def score_with_quality_reports(
+    screener_results: dict[str, list[dict]],
+    quality_reports: dict[str, dict],
+    name_weight: float = 0.3,
+    quality_weight: float = 0.7,
+) -> dict[str, list[dict]]:
+    """STUB: 完整实现在 Task 1.4。"""
+    if not math.isclose(name_weight + quality_weight, 1.0, abs_tol=1e-6):
+        raise ValueError(f"name_weight + quality_weight must = 1.0, got {name_weight + quality_weight}")
+    out = {}
+    for cat, cands in screener_results.items():
+        new_list = []
+        for c in cands:
+            code = str(c.get("code", ""))
+            name_score = float(c.get("score", 0))
+            qr = quality_reports.get(code)
+            if qr is None:
+                new_list.append({**c, "name_score": name_score, "quality_score": 0.0,
+                                 "score": name_score, "quality_signals": None,
+                                 "report_paths": None, "quality_missing": True})
+            else:
+                q_score = float(qr.get("quality_score", 0))
+                final = round(name_score * name_weight + q_score * quality_weight, 2)
+                new_list.append({**c, "name_score": round(name_score, 2),
+                                 "quality_score": round(q_score, 2), "score": final,
+                                 "quality_signals": qr.get("signals", {}),
+                                 "report_paths": qr.get("report_paths", {}),
+                                 "missing_dimensions": qr.get("missing_dimensions", []),
+                                 "quality_missing": False})
+        new_list.sort(key=lambda x: (-x["score"], str(x.get("name", ""))))
+        out[cat] = new_list
+    return out
 
 
 # ---------------------------------------------------------------------------
