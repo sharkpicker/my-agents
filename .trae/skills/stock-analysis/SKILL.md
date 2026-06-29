@@ -48,10 +48,10 @@ description: Use when user provides any of the following for A股 / 公募基金
 
 ### 铁律 4:7 分析师必须并行
 - Step 1 的 7 个分析师 subagent 必须**在同一消息中通过多次 Task 工具调用并行触发**,不可串行。
-- 等待所有 7 份报告返回后,再进入 Step 2。
+- 等待所有 7 份报告返回后,再进入 Step 5。
 
 ### 铁律 5:辩论至少 1 轮
-- Step 3 至少进行 1 轮多空辩论。复杂标的可做 2-3 轮。
+- Step 7 至少进行 1 轮多空辩论。复杂标的可做 2-3 轮。
 - 风控辩论(Step 6)同样至少 1 轮。
 
 ### 铁律 6:智能增量拉取
@@ -80,8 +80,8 @@ description: Use when user provides any of the following for A股 / 公募基金
   4. 返回契约格式(summary/detail_path/evidence)
   ```
 
-### 铁律 8:Step 5.5 增强版必须按类分批并行
-- 组合工作流 Step 5.5(增强版)的 7 分析师 + 辩论 subagent 必须**按 underweight 类别分批**、**同类内同消息并行**触发,不可串行、不可跨类合并。
+### 铁律 8:Step 10 增强版必须按类分批并行
+- 组合工作流 Step 10(增强版)的 7 分析师 + 辩论 subagent 必须**按 underweight 类别分批**、**同类内同消息并行**触发,不可串行、不可跨类合并。
 - 调度规则:
   - 单类 underweight: 1 批(35 个 7 分析师 + 2 个辩论 = 37 Task 同一消息内并行)
   - 多类 underweight: 每类 1 批,批间串行(主对话等待)
@@ -143,19 +143,20 @@ description: Use when user provides any of the following for A股 / 公募基金
 ### C. 组合/持仓工作流(**核心修复点 - 通用版**)
 → 见 [`workflow-portfolio.md`](workflow-portfolio.md)
 - 适用: 多只基金/股票构成的持仓,或截图形式的持仓页面
-- **支持三种组合类型**(Step 0.4 自动判定):
-  - **C-1 全基金组合**: 持仓全部是公募基金 → 走 Step 1.1(7 基金分析师 subagent)
-  - **C-2 全股票组合**: 持仓全部是 A 股股票 → 走 Step 1.2(7 股票分析师 subagent)
-  - **C-3 混合组合**: 持仓同时包含基金和股票 → 同时走 Step 1.1 + 1.2,分两批调度
+- **支持三种组合类型**(Step 1.4 自动判定):
+  - **C-1 全基金组合**: 持仓全部是公募基金 → 走 Step 4.1(7 基金分析师 subagent)
+  - **C-2 全股票组合**: 持仓全部是 A 股股票 → 走 Step 4.2(7 股票分析师 subagent)
+  - **C-3 混合组合**: 持仓同时包含基金和股票 → 同时走 Step 4.1 + 4.2,分两批调度
 - 流程:
-  1. **Step 0**: 识别所有标的 + 用 `fund detect` 探测每只类型,分流为 {funds, stocks} → C-1/C-2/C-3
-  2. **Step 0.5** ⭐ C-1/C-3 增强: 主对话直接采集用户风险等级/期限/偏好(本地规则解析 + AskUserQuestion 反问),落盘 `prefs.json`
-  3. **Step 1**: 按类型分批调度对应的 7 大分析师 subagent(并行)
-  4. **Step 2**: 调度 1 个组合分析师 subagent 做组合层面诊断(**根据 C-1/C-2/C-3 自适应不同维度**:C-1 查清盘风险 / C-2 查行业估值 / C-3 查股债平衡 + 重复持仓)
-  5. **Step 2.6** ⭐ C-1/C-3 增强: 主对话内联算 **当前 vs 目标 gap**,产出 `portfolio_gap.md`
-  6. Step 3-7: 辩论 + 研究经理 + 交易员 + 风控 + 组合经理
-  7. **Step 5.5** ⭐ C-1/C-3 增强: `fund-recommender` subagent 从**国内场外公募基金全量库**(`_meta/fund_list.json`)自动筛选补/换候选
-  8. Step 8: 输出 `portfolio_<日期>.html` 报告(含偏好/gap/推荐补换/调整后配置模块)
+  1. **Step 1**: 识别所有标的 + 用 `fund detect` 探测每只类型,分流为 {funds, stocks} → C-1/C-2/C-3
+  2. **Step 2** ⭐ C-1/C-3 增强: 主对话直接采集用户风险等级/期限/偏好(本地规则解析 + AskUserQuestion 反问),落盘 `prefs.json`
+  3. **Step 3**: 主对话智能增量拉取数据
+  4. **Step 4**: 按类型分批调度对应的 7 大分析师 subagent(并行)
+  5. **Step 5**: 调度 1 个组合分析师 subagent 做组合层面诊断(**根据 C-1/C-2/C-3 自适应不同维度**:C-1 查清盘风险 / C-2 查行业估值 / C-3 查股债平衡 + 重复持仓)
+  6. **Step 6** ⭐ C-1/C-3 增强: 主对话内联算 **当前 vs 目标 gap**,产出 `portfolio_gap.md`
+  7. Step 7-12: 辩论 + 研究经理 + 交易员 + 风控 + 组合经理
+  8. **Step 10** ⭐ C-1/C-3 增强: `fund-recommender` subagent 从**国内场外公募基金全量库**(`_meta/fund_list.json`)自动筛选补/换候选
+  9. Step 13: 输出 `portfolio_<日期>.html` 报告(含偏好/gap/推荐补换/调整后配置模块)
 
 ---
 
