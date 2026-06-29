@@ -51,11 +51,11 @@
 
 | 角色 | agent 文件 | 描述 | 调度方式 |
 |------|-----------|------|----------|
-| 组合分析师 | `portfolio_analyst.md` | 整合所有单标的报告,做组合层面诊断(集中度/行业暴露/相关性/申赎压力/风格漂移) | Step 2 通过 Task 工具调度 |
-| 数据质量审计员 | `data-quality-auditor.md` | 审计 Step 1 报告完整性 / 一致性 / 时效性 | `data_quality_auditor` step 调度 |
-| HTML 渲染员 | `html-renderer.md` | 把 markdown 报告渲染为 HTML | Step 8 主对话直接调用 |
-| 风险偏好采集员 ⭐ | `risk-profile-collector.agent.md` | 从用户输入中结构化抽取风险偏好,落盘 `prefs.json` | **Step 0.5**(C-1/C-3) |
-| 候选基金推荐员 ⭐ | `fund-recommender.agent.md` | 从国内场外公募全量库中筛选补/换候选 | **Step 5.5**(C-1/C-3) |
+| 组合分析师 | `portfolio_analyst.md` | 整合所有单标的报告,做组合层面诊断(集中度/行业暴露/相关性/申赎压力/风格漂移) | Step 5 通过 Task 工具调度 |
+| 数据质量审计员 | `data-quality-auditor.md` | 审计 Step 3 报告完整性 / 一致性 / 时效性 | `data_quality_auditor` step 调度 |
+| HTML 渲染员 | `html-renderer.md` | 把 markdown 报告渲染为 HTML | Step 10 主对话直接调用 |
+| 风险偏好采集员 ⚠️ 废弃 | `risk-profile-collector.agent.md` | **已废弃**,Step 2 改由主对话直接执行(本地规则解析 + AskUserQuestion 反问) | 不再使用 |
+| 候选基金推荐员 ⭐ | `fund-recommender.agent.md` | 从国内场外公募全量库中筛选补/换候选 | **Step 10**(C-1/C-3) |
 
 ---
 
@@ -64,12 +64,16 @@
 每个 subagent 通过 `Task` 工具以 `subagent_type: "general_purpose_task"` 调用,prompt 模板:
 
 ```
-你是 <角色>(<agent-name>)。请:
-1. 读取 <agent-name>.agent.md 文件,严格按照其中的输出格式完成报告
-2. 对 <标的代码> 拉取数据: <数据命令列表>
-3. 数据保存到 data/<stocks|funds>/<代码>/ 目录
-4. 基于数据完成你的分析报告并保存到 reports/<日期>/<stock|fund>/<代码>_<角色>.md
-5. 返回报告核心要点摘要给我(简要的 markdown 摘要)
+角色: <agent-name>
+标的: <code>（<名称>）
+数据目录: data/<stocks|funds>/<code>/
+输出路径: reports/<日期>/<stock|fund>/<code>_<role>.md
+
+请:
+1. 读取 agents/<agent-name>.agent.md 获取角色定义和输出格式
+2. 读取数据目录下的相关数据（数据已由主对话预拉取）
+3. 完成分析/研判并写入输出路径
+4. 返回契约格式(summary/detail_path/evidence)
 ```
 
 **重要**: subagent 的返回值就是给主对话的"上下文材料",主对话不需要重写报告,只需转发给下一阶段的 subagent。
