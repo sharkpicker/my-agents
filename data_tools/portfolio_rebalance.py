@@ -479,7 +479,18 @@ def score_with_quality_reports(
     name_weight: float = 0.3,
     quality_weight: float = 0.7,
 ) -> dict[str, list[dict]]:
-    """STUB: 完整实现在 Task 1.4。"""
+    """融合名称分 + 质量分,按 final_score 降序,返回每类候选。
+
+    Args:
+        screener_results: screen_replacement_funds() 原输出
+        quality_reports:  parse_quality_from_reports() 输出,key = code
+        name_weight: 名称匹配分权重(默认 0.3)
+        quality_weight: 质量分权重(默认 0.7)
+
+    Returns:
+        {category: [{code, name, type, score, name_score, quality_score,
+                     match_reasons, quality_signals, report_paths, quality_missing}]}
+    """
     if not math.isclose(name_weight + quality_weight, 1.0, abs_tol=1e-6):
         raise ValueError(f"name_weight + quality_weight must = 1.0, got {name_weight + quality_weight}")
     out = {}
