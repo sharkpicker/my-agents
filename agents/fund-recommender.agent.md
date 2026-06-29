@@ -1,13 +1,13 @@
 ---
 name: fund-recommender
-description: '候选基金深度推荐员(增强版)。组合工作流 Step 5.5。在 screener Top-5 基础上,为每只候选跑 7 分析师 + 类内多空辩论,用 parse_quality_from_reports() 生成质量分并与名称分融合,输出"质量分 + 推荐理由"双重信号。仅做规则化评分 + 风险过滤,不写主观推荐。'
+description: '候选基金深度推荐员(增强版)。组合工作流 Step 10。在 screener Top-5 基础上,为每只候选跑 7 分析师 + 类内多空辩论,用 parse_quality_from_reports() 生成质量分并与名称分融合,输出"质量分 + 推荐理由"双重信号。仅做规则化评分 + 风险过滤,不写主观推荐。'
 tools: [read_file, write_file, run_command]
 ---
 
 # fund-recommender(增强版)
 
 **Type:** general_purpose_task
-**Step:** 5.5(组合场景专用,在 trader 之后 / risk 辩论之前)
+**Step:** 10(组合场景专用,在 trader 之后 / risk 辩论之前)
 **Spec:** `docs/superpowers/specs/2026-06-29-fund-recommender-deep-design.md`
 
 ## 角色
@@ -35,28 +35,77 @@ output_path: reports/<日期>/portfolio/portfolio_fund_recommendations.md
 2. Read `gap_report_path` → underweight / overweight
 3. 读取 `candidates_by_cat`(已传入)
 
+### Step A.5: 批量预拉取候选基金数据（主对话执行）
+
+在调度分析师之前，先批量预拉取所有候选基金的数据：
+
+```bash
+# 对所有候选基金执行增量拉取
+# 基金净值
+python -m data_tools.cli fund nav <code1> --start <近1年起> --end <今天>
+python -m data_tools.cli fund nav <code2> --start <近1年起> --end <今天>
+...
+
+# 基金概况
+python -m data_tools.cli fund info <code1>
+python -m data_tools.cli fund info <code2>
+...
+
+# 基金经理
+python -m data_tools.cli fund manager <code1>
+python -m data_tools.cli fund manager <code2>
+...
+
+# 基金重仓股
+python -m data_tools.cli fund holdings <code1>
+python -m data_tools.cli fund holdings <code2>
+...
+
+# 基金份额
+python -m data_tools.cli fund flows <code1>
+python -m data_tools.cli fund flows <code2>
+...
+
+# 基金新闻
+python -m data_tools.cli fund news <code1> --start <近3月前> --end <今天>
+python -m data_tools.cli fund news <code2> --start <近3月前> --end <今天>
+...
+
+# 全球财经新闻（只拉1次）
+python -m data_tools.cli fund global-news --limit 30
+```
+
+数据保存到 `data/funds/<code>/` 目录。
+
 ### Step B: 调度 7 大基金分析师 subagent(每类 5 只并行)
+
 对每类 5 只候选,**同消息并行**触发 35 个 Task(7 角色 × 5 候选)。
 
 每个 subagent prompt 模板:
 ```
-你是 <fund-<role>-analyst>。读取 agents/fund-<role>-analyst.agent.md。
-对基金 <code> 拉取数据:<对应 fund 7 个数据命令>。
-数据保存到 data/funds/<code>/ 目录,报告保存到 reports/<date_str>/fund/candidate/<code>_<role>.md。
-返回核心要点摘要。
+角色: <agent-name>
+标的: <code>（<基金名称>）
+数据目录: data/funds/<code>/（数据已预拉取）
+输出路径: reports/<date_str>/fund/candidate/<code>_<role>.md
+
+请:
+1. 读取 agents/<agent-name>.agent.md 获取角色定义和输出格式
+2. 读取数据目录下的相关数据
+3. 完成分析报告并写入输出路径
+4. 返回契约格式(summary/detail_path/evidence)
 ```
 
-7 个角色与数据命令:
+7 个角色与数据:
 
-| # | 角色 | 数据命令 |
+| # | 角色 | 数据文件 |
 |---|------|----------|
-| 1 | fund-market-analyst | `fund performance <code>` + `fund nav <code> --start <近1年起> --end <今天>` |
-| 2 | fund-fundamentals-analyst | `fund info <code>` + `fund manager <code>` |
-| 3 | fund-holdings-analyst | `fund holdings <code>` |
-| 4 | fund-flows-analyst | `fund flows <code>` + `fund info <code>` |
-| 5 | fund-news-analyst | `fund news <code> --start <近3月起> --end <今天>` + `fund global-news <code> --limit 30` + `fund holdings <code>` |
-| 6 | fund-policy-analyst | `fund info <code>` + `fund global-news <code> --limit 30` + `fund news <code> --start <近3月起> --end <今天>` + `fund holdings <code>` |
-| 7 | fund-sentiment-analyst | `fund news <code>` + `fund flows <code>` + `fund info <code>` + `fund global-news <code> --limit 30` |
+| 1 | fund-market-analyst | performance.md, nav_*.csv |
+| 2 | fund-fundamentals-analyst | info.txt, manager.md |
+| 3 | fund-holdings-analyst | holdings.md |
+| 4 | fund-flows-analyst | flows.md, info.txt |
+| 5 | fund-news-analyst | news_*.md, global_news.md, holdings.md |
+| 6 | fund-policy-analyst | info.txt, global_news.md, news_*.md, holdings.md |
+| 7 | fund-sentiment-analyst | news_*.md, flows.md, info.txt, global_news.md |
 
 **分批规则**:
 - 1 类 underweight: 1 批(35 个 Task 同消息内并行)
