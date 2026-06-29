@@ -1,0 +1,15 @@
+{
+  "snapshot_date": "2026-06-27",
+  "user_id": "demo_user",
+  "positions": [
+    {"code": "007466", "name": "华泰柏瑞中证红利低波ETF联接A", "type": "fund", "amount": 7920.75, "holding_return": -632.62, "holding_return_pct": -7.36},
+    {"code": "080005", "name": "长盛量化红利策略混合A", "type": "fund", "amount": 1768.88, "holding_return": -151.12, "holding_return_pct": -7.87},
+    {"code": "024419", "name": "华夏创业板新能源ETF联接A", "type": "fund", "amount": 567.20, "holding_return": -49.52, "holding_return_pct": -8.03},
+    {"code": "014767", "name": "景顺长城华城稳健6个月持有A", "type": "fund", "amount": 476.11, "holding_return": -9.04, "holding_return_pct": -1.86},
+    {"code": "005313", "name": "万家中证1000指数增强A", "type": "fund", "amount": 1980.94, "holding_return": 5.94, "holding_return_pct": 0.30},
+    {"code": "010673", "name": "兴全中证800六个月持有期指数增强A", "type": "fund", "amount": 832.96, "holding_return": 6.28, "holding_return_pct": 0.76},
+    {"code": "004069", "name": "南方中证全指证券公司ETF联接A", "type": "fund", "amount": 1316.72, "holding_return": 66.72, "holding_return_pct": 5.34},
+    {"code": "001717", "name": "工银瑞信前沿医疗股票A", "type": "fund", "amount": 5899.37, "holding_return": 97.51, "holding_return_pct": 1.68},
+    {"code": "015143", "name": "中欧智能制造混合A", "type": "fund", "amount": 1779.64, "holding_return": 422.18, "holding_return_pct": 31.10}
+  ]
+}

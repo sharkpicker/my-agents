@@ -1,0 +1,14 @@
+# A股多智能体分析系统 - 数据工具依赖
+mootdx>=0.11.0
+pandas>=2.0.0
+requests>=2.28.0
+stockstats>=0.6.0
+python-dateutil>=2.8.0
+
+# HTML 模板渲染(Phase 4 新增)
+jinja2>=3.1.0
+MarkupSafe>=2.0.0
+
+# 测试(Phase 5+ 新增)
+pytest>=7.0.0
+click>=8.0.0  # CLI 子命令(Phase 2 已用,补依赖声明)

@@ -1,0 +1,17 @@
+<section class="fund-section">
+  <h2>基金分析</h2>
+  <div class="fund-summary">
+    <p>基金类型: {{ fund_meta.type }}</p>
+    <p>规模: {{ fund_meta.scale }}</p>
+    <p>净值日期: {{ fund_meta.nav_date }}</p>
+  </div>
+  <h3>前 10 大重仓</h3>
+  <table>
+    <thead><tr><th>股票代码</th><th>股票名称</th><th>占比</th></tr></thead>
+    <tbody>
+    {% for h in fund_meta.holdings %}
+      <tr><td>{{ h.code }}</td><td>{{ h.name }}</td><td>{{ h.ratio }}%</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>

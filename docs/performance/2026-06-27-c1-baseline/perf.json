@@ -1,0 +1,70 @@
+{
+  "scenario": "C-1",
+  "holdings_count": 9,
+  "total_amount": 22542.57,
+  "steps": [
+    {
+      "step": "Step 0: input_router",
+      "t_start": 1271265.3064628,
+      "t_end": 1271265.3064904,
+      "duration_ms": 0.03
+    },
+    {
+      "step": "Step 1: 7 角色 × 9 基金 = 63 subagent (mock)",
+      "t_start": 1271265.3065048,
+      "t_end": 1271268.4576039,
+      "duration_ms": 3151.1
+    },
+    {
+      "step": "Step 2: data_quality_auditor (mock)",
+      "t_start": 1271268.4576351,
+      "t_end": 1271268.4784524,
+      "duration_ms": 20.82
+    },
+    {
+      "step": "Step 2.5: portfolio_analyst (真实)",
+      "t_start": 1271268.4785269,
+      "t_end": 1271268.4785928,
+      "duration_ms": 0.07
+    },
+    {
+      "step": "Step 3: 多空辩论 (mock)",
+      "t_start": 1271268.4786101,
+      "t_end": 1271268.5292726,
+      "duration_ms": 50.66
+    },
+    {
+      "step": "Step 4: 研究经理 (mock)",
+      "t_start": 1271268.5293272,
+      "t_end": 1271268.5803396,
+      "duration_ms": 51.01
+    },
+    {
+      "step": "Step 5: 交易员 (mock)",
+      "t_start": 1271268.5804491,
+      "t_end": 1271268.630765,
+      "duration_ms": 50.32
+    },
+    {
+      "step": "Step 6: 风险评估(3 路并行) (mock)",
+      "t_start": 1271268.6308252,
+      "t_end": 1271268.6810623,
+      "duration_ms": 50.24
+    },
+    {
+      "step": "Step 7: 组合经理 (mock)",
+      "t_start": 1271268.6810951,
+      "t_end": 1271268.7321988,
+      "duration_ms": 51.1
+    },
+    {
+      "step": "Step 8: html_renderer",
+      "t_start": 1271268.7322325,
+      "t_end": 1271268.7492018,
+      "duration_ms": 16.97
+    }
+  ],
+  "total_ms": 3442.3199999999997,
+  "html_path": "reports\\2026-06-27\\portfolio\\portfolio_c1_real_2026-06-27.html",
+  "html_size_bytes": 4294
+}

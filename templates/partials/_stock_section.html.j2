@@ -1,0 +1,11 @@
+<section class="stock-section">
+  <h2>股票分析</h2>
+  <table>
+    <thead><tr><th>维度</th><th>结论</th></tr></thead>
+    <tbody>
+    {% for item in stock_items %}
+      <tr><td>{{ item.dimension }}</td><td>{{ item.conclusion }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
