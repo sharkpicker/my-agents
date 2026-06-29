@@ -450,57 +450,90 @@ Task({description: "组合交易员方案", prompt: "你是 trader(交易员)。
 
 ---
 
-## Step 5.5: 候选基金推荐(从国内场外公募全量库自动筛选)⭐ 增强
+## Step 5.5: 候选基金深度推荐(增强版)⭐ 核心改造
 
-**目标**: 当 Step 2.6 识别出 `underweight` 品类时,自动从 `data/funds/_meta/fund_list.json`
-(由 `fund_universe sync` 拉取的国内场外开放式基金全量库)中筛选**补/换候选**。
+**目标**: 在 screener Top-5 基础上,为每只候选跑 7 大基金分析师 + 1 轮类内多空辩论,
+用 `parse_quality_from_reports()` 规则化生成质量分,与原 _score_fund 名称分按 3:7 融合,
+输出"质量分 + 推荐理由"双重信号的 `portfolio_fund_recommendations.md`。
 
-**触发条件**:
-- `underweight` 列表非空(且至少一类 > 3% 缺口)
-- 基金全量库已存在(`_meta/fund_list.json` 存在)
-- 用户没显式说"不要推荐新基金"
+**Spec**: `docs/superpowers/specs/2026-06-29-fund-recommender-deep-design.md`
 
-**未触发时的处理**:
-- 在 `reports/<日期>/portfolio/portfolio_final.md` 中标注 `[未触发 Step 5.5: 无 underweight 品类]`,不报失败。
+**触发条件**: 总是触发(underweight 非空 + `_meta/fund_list.json` 存在)。
 
-### 5.5.1 调度 fund-recommender subagent
+**调度成本**:
+- 单类 underweight: 35(7 分析师 × 5) + 2(辩论) = 37 subagent
+- 5 类 underweight: 5 × 37 = 185 subagent,约 3-5 分钟
+
+### 5.5.1 主对话预生成候选列表
+
+```python
+from data_tools.portfolio_rebalance import screen_replacement_funds
+candidates_by_cat = screen_replacement_funds(
+    categories=underweight,
+    prefs=prefs,
+    per_category=5,
+)
+candidates_by_cat = {cat: [c.to_dict() for c in cands] for cat, cands in candidates_by_cat.items()}
+```
+
+### 5.5.2 调度 fund-recommender subagent
 
 ```
-Task({description: "候选基金推荐", prompt: "你是 fund-recommender(候选基金推荐员)。读取 agents/fund-recommender.agent.md 并按其输出契约完成任务。
+Task({
+  description: "候选基金深度推荐",
+  prompt: "你是 fund-recommender(增强版)。读取 agents/fund-recommender.agent.md。
 
-    输入:
-    - 用户偏好: data/portfolios/<user_id>/prefs.json
-    - 当前持仓: <holdings JSON>
-    - gap 报告: reports/<日期>/portfolio/portfolio_gap.md
-    - 基金全量库: data/funds/_meta/fund_list.json
-    - 输出路径: reports/<日期>/portfolio/portfolio_fund_recommendations.md
+    输入(JSON 字符串):
+    {
+      'date_str': '<日期>',
+      'candidates_by_cat': <candidates_by_cat JSON>,
+      'prefs_path': 'data/portfolios/<id>/prefs.json',
+      'gap_report_path': 'reports/<日期>/portfolio/portfolio_gap.md',
+      'universe_path': 'data/funds/_meta/fund_list.json',
+      'output_path': 'reports/<日期>/portfolio/portfolio_fund_recommendations.md'
+    }
 
     任务:
-    1. 读取 prefs.json,加载目标配置。
-    2. 对每个 underweight 品类调 screener replacement 拉候选(默认 Top 5)。
-    3. 对每个 overweight 标的,从 screener 同品类下取 Top-1 作为替换建议。
-    4. 二次过滤(场外 / 排除已持有 / 用户显式排除 / 规模 < 5000 万 / 持有期 < 1 年)。
-    5. 输出 Markdown 报告,包含:用户偏好块、underweight 候选清单、overweight 替换建议。
-    6. 写盘到 {output_path} 并返回摘要给我。", subagent_type: "general_purpose_task"})
+    1. 读取 prefs + gap_report
+    2. 按 agent.md Step B 并行调度 7 分析师(每类 5 只,同消息内)
+    3. 按 agent.md Step C 调度 1 轮类内多空辩论
+    4. 按 agent.md Step D 调 quality-score CLI 收集 quality_reports
+    5. 按 agent.md Step E 调 score_with_quality_reports 融合
+    6. 按 agent.md Step F 写出 portfolio_fund_recommendations.md
+    7. 返回契约(≤ 2k tokens)
+  ",
+  subagent_type: "general_purpose_task"
+})
 ```
 
-### 5.5.2 主对话校验产出
+### 5.5.3 主对话校验产出
 
 - 必校验项:
-  - 报告含 `recommendations` 列表(每条含 candidates 数组)
-  - 每个候选含 `code / name / type / score / match_reasons`
-  - 候选全部满足 `is_offexchange=True`(场外)
+  - `recommendations` 列表非空
+  - 每只候选含 `score / name_score / quality_score / quality_signals / report_paths`
+  - `final_score` ∈ [0, 100]
+  - 7 报告路径全部存在或标 `quality_missing=true`
 - 校验失败则重跑或追加 fallback 提示。
 
-### 5.5.3 与后续步骤的衔接
+### 5.5.4 报告路径
 
-- Step 6 (风控) 必须引用 Step 5.5 的"替换建议",对替换标的做单独审查
-- Step 7 (组合经理) 必须把"调整后目标配置 + 推荐补/换基金"写进最终报告
-- Step 8 (HTML 渲染) 必须新增"调整建议"模块,展示:
-  - 用户偏好与目标配置(从 prefs.json)
-  - 资产 gap 矩阵(从 portfolio_gap.md)
-  - 推荐补/换基金清单(从 portfolio_fund_recommendations.md)
-  - 调整后目标配置对比表(当前 vs 推荐)
+- 候选基金 7 报告: `reports/<日期>/fund/candidate/<code>_<role>.md`
+- 类内辩论: `reports/<日期>/fund/candidate/<cat>_<bull|bear>.md`
+- 推荐汇总: `reports/<日期>/portfolio/portfolio_fund_recommendations.md`
+
+### 5.5.5 与后续步骤的衔接
+
+- Step 6 (风控): 必须引用推荐汇总,审查替换标的风险
+- Step 7 (组合经理): 必须读推荐汇总,新增"推荐补/换基金的深度评估"章节
+- Step 8 (HTML 渲染): 必须渲染"质量分组成表"和"深度报告路径表"
+
+### 5.5.6 降级路径(部分失败不阻塞)
+
+- 单只候选 7 报告全失败 → 用 name_score 兜底,标 `quality_missing=true`
+- 单只候选 1-2 维度失败 → 该维度权重归零,其他等比放大,标 [质量分缺失维度:xxx]
+- 某类 bull/bear 失败 → 标 [辩论缺失:bull.md 未生成],不影响 parse_quality 评分
+- 整类 screener 失败 → 该类跳过,标 [本类无候选:xxx]
+- fund_list.json 不存在 → 整个 Step 5.5 跳过,portfolio_final 标 [Step 5.5 未触发:fund_list.json 不存在]
 
 ---
 
