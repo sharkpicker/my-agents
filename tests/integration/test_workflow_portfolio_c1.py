@@ -26,3 +26,62 @@ def test_workflow_c1_9_funds(workflow_runner):
     # Step 8
     r8 = workflow_runner.run_step_8_html_renderer(r7, "portfolio")
     assert r8.exists()
+
+
+# ==========================================================================
+# Step 5.5 增强版集成测试(fund-recommender 深度推荐)
+# ==========================================================================
+
+
+def test_step_5_5_quality_score_fusion_contract():
+    """Step 5.5 增强版跑完后,score_with_quality_reports 必须返回正确融合分。"""
+    from data_tools.portfolio_rebalance import score_with_quality_reports
+
+    quality_reports = {
+        "007466": {
+            "code": "007466", "category": "bond", "quality_score": 75.0,
+            "signals": {
+                "performance": {"score": 45.0, "missing": False},
+                "concentration": {"score": 80.0, "missing": False},
+            },
+            "report_paths": {"market": "x"}, "missing_dimensions": [],
+        },
+    }
+    screener = {"bond": [{"code": "007466", "name": "X", "type": "X",
+                          "score": 60, "match_reasons": []}]}
+    final = score_with_quality_reports(screener, quality_reports)
+    # final = 60*0.3 + 75*0.7 = 18 + 52.5 = 70.5
+    assert final["bond"][0]["score"] == 70.5
+    assert "quality_signals" in final["bond"][0]
+    assert final["bond"][0]["name_score"] == 60
+    assert final["bond"][0]["quality_score"] == 75.0
+    assert final["bond"][0]["quality_missing"] is False
+
+
+def test_step_5_5_quality_missing_fallback_contract():
+    """Step 5.5 增强版:某只候选 7 报告全失败 → 用 name_score 兜底。"""
+    from data_tools.portfolio_rebalance import score_with_quality_reports
+
+    screener = {"bond": [{"code": "AAA", "name": "Y", "type": "Y",
+                          "score": 50, "match_reasons": []}]}
+    final = score_with_quality_reports(screener, {}, name_weight=0.3, quality_weight=0.7)
+    assert final["bond"][0]["score"] == 50
+    assert final["bond"][0]["quality_missing"] is True
+    assert final["bond"][0]["quality_score"] == 0.0
+
+
+def test_step_5_5_parse_quality_5d_contract(write_fake_reports):
+    """Step 5.5 增强版:parse_quality_from_reports 必须返回 5 维度 signals。"""
+    from data_tools.portfolio_rebalance import parse_quality_from_reports
+    from test_quality_score_fixtures import PERFECT_FUND_REPORTS
+
+    d = write_fake_reports("007466", PERFECT_FUND_REPORTS)
+    result = parse_quality_from_reports(
+        code="007466", reports_dir=str(d.parent),
+        category="bond", date_str="2026-06-27",
+    )
+    assert set(result["signals"].keys()) == {
+        "performance", "concentration", "scale", "manager", "policy_sentiment"
+    }
+    assert 0 <= result["quality_score"] <= 100
+    assert isinstance(result["missing_dimensions"], list)
