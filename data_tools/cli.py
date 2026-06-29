@@ -371,6 +371,7 @@ def cmd_quality_score(args):
         reports_dir=args.reports_dir,
         category=args.category,
         date_str=args.date,
+        risk_level=args.risk_level,
     )
     print(json.dumps(out, ensure_ascii=False, indent=2))
 
@@ -840,13 +841,15 @@ def screener_replacement(categories, excluded_codes, preferred, excluded, per_ca
 @click.option("--reports-dir", required=True, help="报告目录(包含 <code>_<role>.md)")
 @click.option("--category", required=True, help="资产大类,如 bond/equity/...")
 @click.option("--date", required=True, help="日期 YYYY-MM-DD")
-def quality_score(code, reports_dir, category, date):
+@click.option("--risk-level", type=int, default=3, help="风险等级 1-5,默认 3 平衡型")
+def quality_score(code, reports_dir, category, date, risk_level):
     """读 7 分析师报告,输出 quality_score JSON(0-100)。"""
     out = portfolio_rebalance.parse_quality_from_reports(
         code=code,
         reports_dir=reports_dir,
         category=category,
         date_str=date,
+        risk_level=risk_level,
     )
     click.echo(json.dumps(out, ensure_ascii=False, indent=2))
 
@@ -1195,6 +1198,7 @@ def main():
     pqs.add_argument("--reports-dir", required=True, help="报告目录(包含 <code>_<role>.md)")
     pqs.add_argument("--category", required=True, help="资产大类,如 bond/equity/...")
     pqs.add_argument("--date", required=True, help="日期 YYYY-MM-DD")
+    pqs.add_argument("--risk-level", type=int, default=3, help="风险等级 1-5,默认 3 平衡型")
     pqs.set_defaults(func=cmd_quality_score)
 
     args = parser.parse_args()

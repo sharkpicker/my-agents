@@ -119,3 +119,132 @@ def test_score_fusion_quality_missing_fallback():
     )
     assert out["bond"][0]["score"] == 50
     assert out["bond"][0]["quality_missing"] is True
+
+
+# ==========================================================================
+# v2: risk_level 自适应评分
+# ==========================================================================
+
+
+def test_get_score_weights_default_is_balanced():
+    """默认 risk_level=3 对应平衡型配置。"""
+    from data_tools.quality_scorer import get_score_weights
+    w = get_score_weights(3)
+    assert w["name_weight"] == 0.30
+    assert w["quality_weight"] == 0.70
+    assert w["dimension_weights"]["performance"] == 0.30
+    assert w["dimension_weights"]["concentration"] == 0.20
+    assert w["dimension_weights"]["scale"] == 0.20
+    assert w["dimension_weights"]["manager"] == 0.15
+    assert w["dimension_weights"]["policy_sentiment"] == 0.15
+
+
+def test_get_score_weights_conservative():
+    """risk_level=1 保守型: quality 权重更高,concentration/scale/manager 权重更高。"""
+    from data_tools.quality_scorer import get_score_weights
+    w = get_score_weights(1)
+    assert w["name_weight"] == 0.20
+    assert w["quality_weight"] == 0.80
+    assert w["dimension_weights"]["performance"] == 0.20
+    assert w["dimension_weights"]["concentration"] == 0.25
+    assert w["dimension_weights"]["scale"] == 0.25
+    assert w["dimension_weights"]["manager"] == 0.20
+    assert w["dimension_weights"]["policy_sentiment"] == 0.10
+
+
+def test_get_score_weights_aggressive():
+    """risk_level=5 激进型: name 权重更高,performance/policy_sentiment 权重更高。"""
+    from data_tools.quality_scorer import get_score_weights
+    w = get_score_weights(5)
+    assert w["name_weight"] == 0.40
+    assert w["quality_weight"] == 0.60
+    assert w["dimension_weights"]["performance"] == 0.40
+    assert w["dimension_weights"]["concentration"] == 0.15
+    assert w["dimension_weights"]["scale"] == 0.15
+    assert w["dimension_weights"]["manager"] == 0.10
+    assert w["dimension_weights"]["policy_sentiment"] == 0.20
+
+
+def test_get_score_weights_invalid_fallback():
+    """无效 risk_level 退化为 3(平衡型)。"""
+    from data_tools.quality_scorer import get_score_weights
+    w3 = get_score_weights(3)
+    w99 = get_score_weights(99)
+    assert w3 == w99
+
+
+def test_score_fusion_risk_level_derives_weights():
+    """不传 name_weight/quality_weight 时,从 risk_level 推导。"""
+    screener = {
+        "bond": [
+            {
+                "code": "007466",
+                "name": "X",
+                "type": "X",
+                "score": 60,
+                "match_reasons": [],
+            }
+        ]
+    }
+    quality = {
+        "007466": {
+            "code": "007466",
+            "category": "bond",
+            "quality_score": 80,
+            "signals": {},
+            "report_paths": {},
+            "missing_dimensions": [],
+        }
+    }
+    # risk_level=1 保守: 0.2*60 + 0.8*80 = 76
+    out_cons = score_with_quality_reports(screener, quality, risk_level=1)
+    assert out_cons["bond"][0]["score"] == 76.0
+    # risk_level=5 激进: 0.4*60 + 0.6*80 = 72
+    out_agg = score_with_quality_reports(screener, quality, risk_level=5)
+    assert out_agg["bond"][0]["score"] == 72.0
+    # risk_level=3 平衡: 0.3*60 + 0.7*80 = 74
+    out_bal = score_with_quality_reports(screener, quality, risk_level=3)
+    assert out_bal["bond"][0]["score"] == 74.0
+
+
+def test_parse_quality_respects_risk_level_dim_weights(write_fake_reports, tmp_path):
+    """不同 risk_level 下,同一基金的 quality_score 因维度权重不同而不同。"""
+    d = write_fake_reports("007466", PERFECT_FUND_REPORTS)
+    r1 = parse_quality_from_reports(
+        code="007466",
+        reports_dir=str(d.parent),
+        category="bond",
+        date_str="2026-06-29",
+        risk_level=1,
+    )
+    r5 = parse_quality_from_reports(
+        code="007466",
+        reports_dir=str(d.parent),
+        category="bond",
+        date_str="2026-06-29",
+        risk_level=5,
+    )
+    # 两者 quality_score 应该不同(因为维度权重不同)
+    assert r1["quality_score"] != r5["quality_score"]
+    assert r1["risk_level"] == 1
+    assert r5["risk_level"] == 5
+
+
+def test_parse_quality_default_risk_level_3(write_fake_reports, tmp_path):
+    """不传 risk_level 默认是 3。"""
+    d = write_fake_reports("007466", PERFECT_FUND_REPORTS)
+    r_default = parse_quality_from_reports(
+        code="007466",
+        reports_dir=str(d.parent),
+        category="bond",
+        date_str="2026-06-29",
+    )
+    r3 = parse_quality_from_reports(
+        code="007466",
+        reports_dir=str(d.parent),
+        category="bond",
+        date_str="2026-06-29",
+        risk_level=3,
+    )
+    assert r_default["quality_score"] == r3["quality_score"]
+    assert r_default["risk_level"] == 3
