@@ -58,6 +58,14 @@ description: Use when user provides any of the following for A股 / 公募基金
 - 所有 subagent 拉取的数据必须先通过 `run_command` 调用 `data_tools.cli` 命令保存到 `data/` 目录,然后 subagent 通过 `read_file` 读取已保存的数据文件进行分析。
 - 禁止 subagent 在调用命令后直接基于 stdout 输出写报告 — 必须先落盘。
 
+### 铁律 7:Step 5.5 增强版必须按类分批并行
+- 组合工作流 Step 5.5(增强版)的 7 分析师 + 辩论 subagent 必须**按 underweight 类别分批**、**同类内同消息并行**触发,不可串行、不可跨类合并。
+- 调度规则:
+  - 单类 underweight: 1 批(35 个 7 分析师 + 2 个辩论 = 37 Task 同一消息内并行)
+  - 多类 underweight: 每类 1 批,批间串行(主对话等待)
+- 7 分析师 subagent 的报告路径必须使用 `reports/<日期>/fund/candidate/<code>_<role>.md` 模板,不可混用单基金工作流的 `<code>_<role>.md` 路径(避免污染)。
+- 质量分必须用 `data_tools.portfolio_rebalance.parse_quality_from_reports()` 规则化生成,禁止 subagent 主观打分。
+
 ---
 
 ## 📥 输入识别与路由(执行前第一步)
