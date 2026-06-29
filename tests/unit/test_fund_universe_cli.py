@@ -67,7 +67,7 @@ def test_cli_fund_universe_sync_error_returns_exit_1(monkeypatch):
 
 def test_cli_fund_universe_update_runs_for_code(monkeypatch):
     called = {"code": None}
-    def fake_sync_single(code, config):
+    def fake_sync_single(code, config, existing_fields=None, force=False):
         called["code"] = code
         return {"last_status": "ok", "fail_count": 0, "fields": {}, "cooldown_until": None}
     monkeypatch.setattr("data_tools.fund_universe.sync_single_fund", fake_sync_single)
@@ -79,7 +79,7 @@ def test_cli_fund_universe_update_runs_for_code(monkeypatch):
 
 
 def test_cli_fund_universe_update_partial_returns_exit_2(monkeypatch):
-    def fake_sync_single(code, config):
+    def fake_sync_single(code, config, existing_fields=None, force=False):
         return {"last_status": "partial", "fail_count": 1,
                 "fields": {"nav": "ok", "info": "failed"}, "cooldown_until": None}
     monkeypatch.setattr("data_tools.fund_universe.sync_single_fund", fake_sync_single)

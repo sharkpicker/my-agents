@@ -65,5 +65,8 @@ def test_default_config_keys():
         "max_fail_count",
         "news_lookback_days",
         "nav_lookback_days",
+        "sync_strategy",
+        "cooldown_steps",
+        "skip_ok_fields",
     }
     assert set(DEFAULT_CONFIG.keys()) == expected_keys

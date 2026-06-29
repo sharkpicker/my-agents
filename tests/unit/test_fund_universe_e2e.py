@@ -57,7 +57,7 @@ def test_e2e_init_status_sync(monkeypatch, tmp_path):
 
 
 def test_e2e_full_fail_to_cooldown(monkeypatch, tmp_path):
-    """多次失败累积到 max_fail_count 后进入冷却。"""
+    """失败后进入冷却，冷却阶梯递增。"""
     monkeypatch.setattr("data_tools.fund_universe.get_meta_dir", lambda: str(tmp_path))
     monkeypatch.setattr("data_tools.fund_universe._sleep_jitter", lambda *a, **kw: None)
 
@@ -74,27 +74,34 @@ def test_e2e_full_fail_to_cooldown(monkeypatch, tmp_path):
     cfg = {"news_lookback_days": 90, "nav_lookback_days": 365,
            "field_interval_min": 0, "field_interval_max": 0,
            "fund_interval_min": 0, "fund_interval_max": 0,
-           "max_fail_count": 3, "fail_cooldown_days": 7, "daily_quota": 1}
+           "cooldown_steps": [1, 3, 7, 14], "fail_cooldown_days": 7, "daily_quota": 1}
     monkeypatch.setattr("data_tools.fund_universe.load_config", lambda: cfg)
 
     refresh_fund_list()
 
-    # 第 1 次失败
+    # 第 1 次失败 → 冷却 1 天
     sync(quota=1, force=True)
     r1 = load_progress()["000001"]
     assert r1["fail_count"] == 1
-    assert r1["cooldown_until"] is None
+    assert r1["cooldown_until"] is not None
+    from datetime import datetime, timedelta
+    cd1 = datetime.fromisoformat(r1["cooldown_until"])
+    assert timedelta(hours=20) < cd1 - datetime.now() < timedelta(hours=28)
 
-    # 第 2 次失败
+    # 第 2 次失败 → 冷却 3 天 (force=True 跳过冷却)
     sync(quota=1, force=True)
     r2 = load_progress()["000001"]
     assert r2["fail_count"] == 2
+    cd2 = datetime.fromisoformat(r2["cooldown_until"])
+    assert timedelta(days=2, hours=20) < cd2 - datetime.now() < timedelta(days=3, hours=4)
 
-    # 第 3 次失败 → 触发冷却
+    # 第 3 次失败 → 冷却 7 天
     sync(quota=1, force=True)
     r3 = load_progress()["000001"]
     assert r3["fail_count"] == 3
     assert r3["cooldown_until"] is not None
+    cd3 = datetime.fromisoformat(r3["cooldown_until"])
+    assert timedelta(days=6, hours=20) < cd3 - datetime.now() < timedelta(days=7, hours=4)
 
     # 冷却中的基金不应被 sync（除非 force=True）
     result_skip = sync(quota=1, force=False)

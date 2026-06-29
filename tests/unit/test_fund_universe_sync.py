@@ -21,7 +21,7 @@ def _seed_list(codes):
 def test_sync_processes_in_quota(monkeypatch, tmp_path):
     monkeypatch.setattr("data_tools.fund_universe.get_meta_dir", lambda: str(tmp_path))
     monkeypatch.setattr("data_tools.fund_universe.sync_single_fund",
-                        lambda code, cfg: {"last_status": "ok", "fail_count": 0,
+                        lambda *a, **kw: {"last_status": "ok", "fail_count": 0,
                                            "fields": {}, "cooldown_until": None})
     monkeypatch.setattr("data_tools.fund_universe._sleep_jitter", lambda *a, **kw: None)
 
@@ -36,7 +36,7 @@ def test_sync_processes_in_quota(monkeypatch, tmp_path):
 def test_sync_skips_cooldown(monkeypatch, tmp_path):
     monkeypatch.setattr("data_tools.fund_universe.get_meta_dir", lambda: str(tmp_path))
     monkeypatch.setattr("data_tools.fund_universe.sync_single_fund",
-                        lambda code, cfg: {"last_status": "ok", "fail_count": 0,
+                        lambda *a, **kw: {"last_status": "ok", "fail_count": 0,
                                            "fields": {}, "cooldown_until": None})
     monkeypatch.setattr("data_tools.fund_universe._sleep_jitter", lambda *a, **kw: None)
 
@@ -55,7 +55,7 @@ def test_sync_skips_cooldown(monkeypatch, tmp_path):
 def test_sync_force_overrides_cooldown(monkeypatch, tmp_path):
     monkeypatch.setattr("data_tools.fund_universe.get_meta_dir", lambda: str(tmp_path))
     monkeypatch.setattr("data_tools.fund_universe.sync_single_fund",
-                        lambda code, cfg: {"last_status": "ok", "fail_count": 0,
+                        lambda *a, **kw: {"last_status": "ok", "fail_count": 0,
                                            "fields": {}, "cooldown_until": None})
     monkeypatch.setattr("data_tools.fund_universe._sleep_jitter", lambda *a, **kw: None)
 
@@ -68,35 +68,40 @@ def test_sync_force_overrides_cooldown(monkeypatch, tmp_path):
     assert "000001" in load_progress()
 
 
-def test_sync_priority_oldest_first(monkeypatch, tmp_path):
+def test_sync_priority_three_tiers(monkeypatch, tmp_path):
+    """三级优先级: P0 新基金 > P1 部分失败 > P2 全部成功。"""
+    picked_order = []
+    def fake_sync(code, cfg, existing_fields=None, force=False):
+        picked_order.append(code)
+        return {"last_status": "ok", "fail_count": 0,
+                "fields": {}, "cooldown_until": None}
     monkeypatch.setattr("data_tools.fund_universe.get_meta_dir", lambda: str(tmp_path))
-    monkeypatch.setattr("data_tools.fund_universe.sync_single_fund",
-                        lambda code, cfg: {"last_status": "ok", "fail_count": 0,
-                                           "fields": {}, "cooldown_until": None})
+    monkeypatch.setattr("data_tools.fund_universe.sync_single_fund", fake_sync)
     monkeypatch.setattr("data_tools.fund_universe._sleep_jitter", lambda *a, **kw: None)
 
-    _seed_list(["000001", "000002", "000003"])
+    _seed_list(["000001", "000002", "000003", "000004"])
     now = datetime.now().isoformat(timespec="seconds")
     _seed_progress({
         "000001": {"last_sync_at": now, "fail_count": 0, "last_status": "ok",
                    "fields": {}, "cooldown_until": None},
-        "000002": {"last_sync_at": None, "fail_count": 0, "last_status": None,
+        "000002": {"last_sync_at": now, "fail_count": 1, "last_status": "partial",
+                   "fields": {"nav": "ok", "info": "failed"}, "cooldown_until": None},
+        "000004": {"last_sync_at": now, "fail_count": 0, "last_status": "ok",
                    "fields": {}, "cooldown_until": None},
     })
 
-    result = sync(quota=1, force=True)
-    # 只采了 1 只，应该是 last_sync_at 为空的 000002（最旧）
-    # 未被选中的 000001 记录应保留
-    progress = load_progress()
-    assert "000002" in progress
-    assert "000001" in progress  # 跨周期保留
+    result = sync(quota=3, force=True)
+    assert result["total"] == 3
+    assert picked_order[0] == "000003"
+    assert picked_order[1] == "000002"
+    assert picked_order[2] in ("000001", "000004")
 
 
 def test_sync_failure_triggers_cooldown(monkeypatch, tmp_path):
     """连续失败 max_fail_count 次的基金进入冷却期。"""
     monkeypatch.setattr("data_tools.fund_universe.get_meta_dir", lambda: str(tmp_path))
     monkeypatch.setattr("data_tools.fund_universe.sync_single_fund",
-                        lambda code, cfg: {"last_status": "failed", "fail_count": 7,
+                        lambda *a, **kw: {"last_status": "failed", "fail_count": 7,
                                            "fields": {"nav": "failed"}, "cooldown_until": None})
     monkeypatch.setattr("data_tools.fund_universe._sleep_jitter", lambda *a, **kw: None)
 
@@ -124,7 +129,7 @@ def test_sync_init_if_list_missing(monkeypatch, tmp_path):
         save_fund_list([{"code": "000001", "name": "X", "type": "Y", "is_offexchange": True}])
     monkeypatch.setattr("data_tools.fund_universe.refresh_fund_list", fake_init)
     monkeypatch.setattr("data_tools.fund_universe.sync_single_fund",
-                        lambda code, cfg: {"last_status": "ok", "fail_count": 0,
+                        lambda *a, **kw: {"last_status": "ok", "fail_count": 0,
                                            "fields": {}, "cooldown_until": None})
     monkeypatch.setattr("data_tools.fund_universe._sleep_jitter", lambda *a, **kw: None)
 
@@ -136,7 +141,7 @@ def test_sync_init_if_list_missing(monkeypatch, tmp_path):
 def test_sync_returns_summary(monkeypatch, tmp_path):
     monkeypatch.setattr("data_tools.fund_universe.get_meta_dir", lambda: str(tmp_path))
     monkeypatch.setattr("data_tools.fund_universe.sync_single_fund",
-                        lambda code, cfg: {"last_status": "ok", "fail_count": 0,
+                        lambda *a, **kw: {"last_status": "ok", "fail_count": 0,
                                            "fields": {}, "cooldown_until": None})
     monkeypatch.setattr("data_tools.fund_universe._sleep_jitter", lambda *a, **kw: None)
 

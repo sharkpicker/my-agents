@@ -22,7 +22,7 @@ def _seed_failure_progress(code, fail_count):
 def test_cooldown_skips_by_default(monkeypatch, tmp_path):
     monkeypatch.setattr("data_tools.fund_universe.get_meta_dir", lambda: str(tmp_path))
     called = {"n": 0}
-    def fake_sync_single(code, cfg):
+    def fake_sync_single(*args, **kwargs):
         called["n"] += 1
         return {"last_status": "ok", "fail_count": 0, "fields": {}, "cooldown_until": None}
     monkeypatch.setattr("data_tools.fund_universe.sync_single_fund", fake_sync_single)
@@ -44,7 +44,7 @@ def test_cooldown_skips_by_default(monkeypatch, tmp_path):
 def test_cooldown_respects_force_true(monkeypatch, tmp_path):
     monkeypatch.setattr("data_tools.fund_universe.get_meta_dir", lambda: str(tmp_path))
     called = {"n": 0}
-    def fake_sync_single(code, cfg):
+    def fake_sync_single(*args, **kwargs):
         called["n"] += 1
         return {"last_status": "ok", "fail_count": 0, "fields": {}, "cooldown_until": None}
     monkeypatch.setattr("data_tools.fund_universe.sync_single_fund", fake_sync_single)
@@ -65,7 +65,7 @@ def test_cooldown_respects_force_true(monkeypatch, tmp_path):
 def test_cooldown_expired_is_synced_again(monkeypatch, tmp_path):
     monkeypatch.setattr("data_tools.fund_universe.get_meta_dir", lambda: str(tmp_path))
     called = {"n": 0}
-    def fake_sync_single(code, cfg):
+    def fake_sync_single(*args, **kwargs):
         called["n"] += 1
         return {"last_status": "ok", "fail_count": 0, "fields": {}, "cooldown_until": None}
     monkeypatch.setattr("data_tools.fund_universe.sync_single_fund", fake_sync_single)
@@ -86,10 +86,10 @@ def test_cooldown_expired_is_synced_again(monkeypatch, tmp_path):
     assert result["success"] == 1
 
 
-def test_partial_failure_resets_fail_count(monkeypatch, tmp_path):
-    """部分失败的同步不增加 fail_count（但 success 路径不影响，这里验证累积语义）。"""
+def test_partial_failure_enters_cooldown_step1(monkeypatch, tmp_path):
+    """部分失败的同步进入第 1 级冷却(1 天)。"""
     monkeypatch.setattr("data_tools.fund_universe.get_meta_dir", lambda: str(tmp_path))
-    def fake_sync_single(code, cfg):
+    def fake_sync_single(*args, **kwargs):
         return {"last_status": "partial", "fail_count": 1,
                 "fields": {"nav": "ok", "info": "failed"}, "cooldown_until": None}
     monkeypatch.setattr("data_tools.fund_universe.sync_single_fund", fake_sync_single)
@@ -99,7 +99,7 @@ def test_partial_failure_resets_fail_count(monkeypatch, tmp_path):
     save_progress({"000001": {"last_sync_at": None, "fail_count": 0,
                                "last_status": None, "fields": {},
                                "cooldown_until": None}})
-    cfg = {"max_fail_count": 3, "fail_cooldown_days": 7, "daily_quota": 5,
+    cfg = {"cooldown_steps": [1, 3, 7, 14], "fail_cooldown_days": 7, "daily_quota": 5,
            "field_interval_min": 0, "field_interval_max": 0,
            "fund_interval_min": 0, "fund_interval_max": 0}
     monkeypatch.setattr("data_tools.fund_universe.load_config", lambda: cfg)
@@ -107,12 +107,16 @@ def test_partial_failure_resets_fail_count(monkeypatch, tmp_path):
     sync(quota=5, force=True)
     rec = load_progress()["000001"]
     assert rec["fail_count"] == 1
-    assert rec["cooldown_until"] is None  # 没达阈值
+    assert rec["cooldown_until"] is not None
+    from datetime import datetime, timedelta
+    cd_until = datetime.fromisoformat(rec["cooldown_until"])
+    delta = cd_until - datetime.now()
+    assert timedelta(hours=20) < delta < timedelta(hours=28)
 
 
 def test_success_resets_fail_count(monkeypatch, tmp_path):
     monkeypatch.setattr("data_tools.fund_universe.get_meta_dir", lambda: str(tmp_path))
-    def fake_sync_single(code, cfg):
+    def fake_sync_single(*args, **kwargs):
         return {"last_status": "ok", "fail_count": 0, "fields": {}, "cooldown_until": None}
     monkeypatch.setattr("data_tools.fund_universe.sync_single_fund", fake_sync_single)
     monkeypatch.setattr("data_tools.fund_universe._sleep_jitter", lambda *a, **kw: None)
