@@ -54,11 +54,33 @@ description: Use when user provides any of the following for A股 / 公募基金
 - Step 3 至少进行 1 轮多空辩论。复杂标的可做 2-3 轮。
 - 风控辩论(Step 6)同样至少 1 轮。
 
-### 铁律 6:数据先保存后读取
-- 所有 subagent 拉取的数据必须先通过 `run_command` 调用 `data_tools.cli` 命令保存到 `data/` 目录,然后 subagent 通过 `read_file` 读取已保存的数据文件进行分析。
-- 禁止 subagent 在调用命令后直接基于 stdout 输出写报告 — 必须先落盘。
+### 铁律 6:智能增量拉取
+- 主对话在调度分析师之前，检查本地已有数据文件是否满足时效性要求
+- 如数据不足或过期，主对话通过 `run_command` 增量拉取缺失数据
+- 数据时效性规则：
+  - K线/净值: 近2年/1年内
+  - 新闻: 近3个月内
+  - global_news/hot_stocks/northbound: 24小时内
+  - 基本面/基金信息: 7天内
+- 分析师直接读取本地已有文件，如发现数据缺失可自行补充拉取（回退机制）
 
-### 铁律 7:Step 5.5 增强版必须按类分批并行
+### 铁律 7:Prompt精简规范
+- Subagent调用prompt只传必要参数，不重复角色定义
+- 调用模板：
+  ```
+  角色: <agent-name>
+  标的: <code>（<name>）
+  数据目录: data/funds/<code>/
+  输出路径: reports/<日期>/fund/<code>_<role>.md
+
+  请:
+  1. 读取 agents/<agent-name>.agent.md 获取角色定义和输出格式
+  2. 读取数据目录下的相关数据
+  3. 完成分析/研判并写入输出路径
+  4. 返回契约格式(summary/detail_path/evidence)
+  ```
+
+### 铁律 8:Step 5.5 增强版必须按类分批并行
 - 组合工作流 Step 5.5(增强版)的 7 分析师 + 辩论 subagent 必须**按 underweight 类别分批**、**同类内同消息并行**触发,不可串行、不可跨类合并。
 - 调度规则:
   - 单类 underweight: 1 批(35 个 7 分析师 + 2 个辩论 = 37 Task 同一消息内并行)
@@ -127,7 +149,7 @@ description: Use when user provides any of the following for A股 / 公募基金
   - **C-3 混合组合**: 持仓同时包含基金和股票 → 同时走 Step 1.1 + 1.2,分两批调度
 - 流程:
   1. **Step 0**: 识别所有标的 + 用 `fund detect` 探测每只类型,分流为 {funds, stocks} → C-1/C-2/C-3
-  2. **Step 0.5** ⭐ C-1/C-3 增强: `risk-profile-collector` subagent 采集用户风险等级/期限/偏好,落盘 `prefs.json`
+  2. **Step 0.5** ⭐ C-1/C-3 增强: 主对话直接采集用户风险等级/期限/偏好(本地规则解析 + AskUserQuestion 反问),落盘 `prefs.json`
   3. **Step 1**: 按类型分批调度对应的 7 大分析师 subagent(并行)
   4. **Step 2**: 调度 1 个组合分析师 subagent 做组合层面诊断(**根据 C-1/C-2/C-3 自适应不同维度**:C-1 查清盘风险 / C-2 查行业估值 / C-3 查股债平衡 + 重复持仓)
   5. **Step 2.6** ⭐ C-1/C-3 增强: 主对话内联算 **当前 vs 目标 gap**,产出 `portfolio_gap.md`
