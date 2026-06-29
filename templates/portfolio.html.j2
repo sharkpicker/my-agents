@@ -4,6 +4,9 @@
   <meta charset="UTF-8">
   <title>{{ meta.name }} - 组合诊断报告</title>
   <link rel="stylesheet" href="style.css">
+  {% if fund_recommendations and fund_recommendations.recommendations %}
+  {% include 'partials/_quality_score_styles.html.j2' %}
+  {% endif %}
 </head>
 <body>
   {% include 'partials/_header.html.j2' %}
