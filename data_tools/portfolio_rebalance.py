@@ -656,6 +656,9 @@ def build_rebalance_plan(
     prefs: UserPrefs,
     universe_path: str | None = None,
     per_category: int = 5,
+    quality_reports: dict[str, dict] | None = None,
+    name_weight: float = 0.3,
+    quality_weight: float = 0.7,
 ) -> RebalancePlan:
     """生成完整的再平衡方案。
 
@@ -664,6 +667,7 @@ def build_rebalance_plan(
     3. 算目标配置
     4. 算 gap
     5. 从全量场外公募中筛补/换基金
+       - 若 quality_reports 传入,调 score_with_quality_reports 融合
     6. 标记需清出的持仓(用户排除品类)
     """
     classified = classify_positions(positions)
@@ -673,13 +677,22 @@ def build_rebalance_plan(
 
     # 替换候选
     held_codes = {p.code for p in classified}
-    replacements = screen_replacement_funds(
+    raw_replacements = screen_replacement_funds(
         categories=underweight,
         prefs=prefs,
         universe_path=universe_path,
         per_category=per_category,
         held_codes=held_codes,
     )
+    if quality_reports:
+        replacements = score_with_quality_reports(
+            screener_results=raw_replacements,
+            quality_reports=quality_reports,
+            name_weight=name_weight,
+            quality_weight=quality_weight,
+        )
+    else:
+        replacements = raw_replacements
 
     # 标记需清出的持仓(用户排除品类中的标的 + 出现在 overweight 名单中)
     excluded: list[dict] = []
