@@ -49,6 +49,75 @@
     {% endif %}
   </main>
 
+  {# Step 5.5 增强版输出: 推荐补/换基金的深度评估(组合场景) #}
+  {% if fund_recommendations and fund_recommendations.recommendations %}
+  <section class="quality-score-detail">
+    <h2>⭐ 推荐补/换基金的深度评估</h2>
+    <p class="muted">基于 7 大基金分析师 + 1 轮类内多空辩论生成(Step 5.5 增强版)。融合分 = 名称分 × 0.3 + 质量分 × 0.7</p>
+
+    {% for rec in fund_recommendations.recommendations %}
+      {% if rec.candidates %}
+      <h3>{{ rec.category }} - Top-3</h3>
+      <table class="quality-table">
+        <thead>
+          <tr>
+            <th>排名</th>
+            <th>代码</th>
+            <th>名称</th>
+            <th>名称分</th>
+            <th>质量分</th>
+            <th>融合分</th>
+            <th>主要信号</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in rec.candidates[:3] %}
+          <tr>
+            <td>{{ loop.index }}</td>
+            <td><code>{{ c.code }}</code></td>
+            <td>{{ c.name }}</td>
+            <td>{{ c.name_score | default(0) | round(1) }}</td>
+            <td>{{ c.quality_score | default(0) | round(1) }}</td>
+            <td><strong>{{ c.score | default(0) | round(1) }}</strong></td>
+            <td>
+              {% if c.quality_signals %}
+                {% for k, v in c.quality_signals.items() %}
+                  {% if not v.missing %}
+                    <span class="signal-chip">{{ k }}: {{ v.score | round(1) }}</span>
+                  {% endif %}
+                {% endfor %}
+                {% if c.missing_dimensions and c.missing_dimensions | length > 0 %}
+                  <span class="signal-chip missing">[{{ c.missing_dimensions | length }} 维缺失]</span>
+                {% endif %}
+              {% endif %}
+              {% if c.quality_missing %}<span class="signal-chip missing">[整只缺失]</span>{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% endif %}
+    {% endfor %}
+
+    <h3>深度报告路径</h3>
+    <p class="muted">点击查看每只候选的 7 分析师完整报告(本工作流产物)</p>
+    <ul class="report-paths">
+      {% for rec in fund_recommendations.recommendations %}
+        {% for c in rec.candidates[:3] %}
+          {% if c.report_paths %}
+          <li>
+            <code>{{ c.code }} {{ c.name }}</code>:
+            {% for role, path in c.report_paths.items() %}
+              <a href="{{ path }}">{{ role }}</a>{% if not loop.last %}, {% endif %}
+            {% endfor %}
+          </li>
+          {% endif %}
+        {% endfor %}
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+
   {% include 'partials/_disclaimer.html.j2' %}
   {% include 'partials/_footer.html.j2' %}
 </body>
