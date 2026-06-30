@@ -34,6 +34,88 @@ from .stock_data import (
 )
 
 # ---------------------------------------------------------------------------
+# 本地缓存检查
+# ---------------------------------------------------------------------------
+
+# 各数据类型的最大缓存有效期（小时），过期则重新拉取
+_CACHE_MAX_AGE_HOURS: dict[str, float] = {
+    "info":        24,   # 基金概况：日频更新即可
+    "holdings":   24,   # 重仓股：季报更新，日频拉取无意义
+    "manager":    24,   # 基金经理：变更频率低
+    "performance": 12,   # 业绩表现：盘中可变，半日有效期
+    "flows":      24,   # 份额/规模：季度更新
+    "nav":         4,   # 净值：交易日15:00后更新，4小时有效
+    "news":        2,   # 新闻：时效性最强，2小时有效
+}
+
+
+def _find_latest_cache_file(
+    symbol: str,
+    prefix: str,
+    extensions: tuple[str, ...] = (".txt", ".md", ".csv"),
+) -> str | None:
+    """在基金数据目录中找到匹配 prefix 的最新文件。
+
+    返回文件的绝对路径，如果未找到返回 None。
+    """
+    fund_dir = get_fund_data_dir(symbol)
+    if not os.path.isdir(fund_dir):
+        return None
+    matched: list[tuple[float, str]] = []
+    for fname in os.listdir(fund_dir):
+        if fname.startswith(prefix) and any(fname.endswith(ext) for ext in extensions):
+            fpath = os.path.join(fund_dir, fname)
+            try:
+                mtime = os.path.getmtime(fpath)
+                matched.append((mtime, fpath))
+            except OSError:
+                continue
+    if not matched:
+        return None
+    matched.sort(key=lambda x: x[0], reverse=True)
+    return matched[0][1]
+
+
+def is_data_fresh(symbol: str, data_type: str) -> bool:
+    """检查某类数据是否仍有缓存（未过期）。
+
+    Parameters
+    ----------
+    symbol : str
+        基金代码。
+    data_type : str
+        数据类型，对应 _CACHE_MAX_AGE_HOURS 的 key（如 "info"/"nav"/"news"）。
+
+    Returns
+    -------
+    bool
+        True 表示本地有该类数据且未过期，可以跳过网络请求。
+    """
+    max_age = _CACHE_MAX_AGE_HOURS.get(data_type, 24)
+    # 各数据类型的文件名前缀映射
+    _PREFIX_MAP = {
+        "info":        "fund_info_",
+        "holdings":    "holdings_",
+        "manager":     "manager_",
+        "performance": "performance_",
+        "flows":       "flows_",
+        "nav":         "nav_",
+        "news":        "fund_news_",
+    }
+    prefix = _PREFIX_MAP.get(data_type, f"{data_type}_")
+    fpath = _find_latest_cache_file(symbol, prefix, (".txt", ".md", ".csv"))
+
+    if fpath is None:
+        return False
+
+    try:
+        age_hours = (time.time() - os.path.getmtime(fpath)) / 3600
+        return age_hours < max_age
+    except OSError:
+        return False
+
+
+# ---------------------------------------------------------------------------
 # 基金接口端点
 # ---------------------------------------------------------------------------
 
@@ -191,6 +273,7 @@ def get_fund_nav(
     start_date: str,
     end_date: str,
     save: bool = True,
+    force: bool = False,
 ) -> str:
     """获取基金历史净值（单位净值/累计净值/日增长率）。
 
@@ -199,11 +282,23 @@ def get_fund_nav(
         start_date: 开始日期 (YYYY-MM-DD)
         end_date: 结束日期 (YYYY-MM-DD)
         save: 是否保存到 data 目录
+        force: 是否强制拉取（忽略本地缓存）
 
     Returns:
         格式化的净值数据文本 (CSV)
     """
     code = _normalize_fund_code(symbol)
+
+    # 缓存检查：查找精确匹配的 nav_{start}_{end}.csv
+    if not force and save:
+        fund_dir = get_fund_data_dir(code)
+        cache_name = f"nav_{start_date}_{end_date}.csv"
+        cache_path = os.path.join(fund_dir, cache_name)
+        if os.path.isfile(cache_path) and os.path.getsize(cache_path) > 0:
+            age_hours = (time.time() - os.path.getmtime(cache_path)) / 3600
+            if age_hours < _CACHE_MAX_AGE_HOURS["nav"]:
+                return f"[缓存命中] {cache_path}（{age_hours:.1f}h 前拉取，未过期）"
+
     try:
         rows = []
         page = 1
@@ -269,9 +364,14 @@ def get_fund_nav(
 # 2. get_fund_info - 基金概况
 # ---------------------------------------------------------------------------
 
-def get_fund_info(symbol: str, save: bool = True) -> str:
+def get_fund_info(symbol: str, save: bool = True, force: bool = False) -> str:
     """获取基金概况（名称/类型/成立日/规模/经理/费率/托管人等）。"""
     code = _normalize_fund_code(symbol)
+
+    if not force and save and is_data_fresh(code, "info"):
+        fpath = _find_latest_cache_file(code, "fund_info_", (".txt",))
+        return f"[缓存命中] {fpath}"
+
     try:
         url = f"{_FUND_F10}/jbgk_{code}.html"
         r = _fund_get(url, timeout=15)
@@ -356,9 +456,14 @@ def get_fund_ftype(symbol: str, save: bool = False) -> str:
 # 3. get_fund_holdings - 重仓股
 # ---------------------------------------------------------------------------
 
-def get_fund_holdings(symbol: str, save: bool = True) -> str:
-    """获取基金最新重仓股（前十重仓股/持仓比例/所属板块）。"""
+def get_fund_holdings(symbol: str, save: bool = True, force: bool = False) -> str:
+    """获取基金重仓股（前十大持仓）."""
     code = _normalize_fund_code(symbol)
+
+    if not force and save and is_data_fresh(code, "holdings"):
+        fpath = _find_latest_cache_file(code, "holdings_", (".md",))
+        return f"[缓存命中] {fpath}"
+
     try:
         url = f"{_FUND_F10}/FundArchivesDatas.aspx"
         params = {
@@ -437,9 +542,14 @@ def get_fund_holdings(symbol: str, save: bool = True) -> str:
 # 4. get_fund_manager - 基金经理
 # ---------------------------------------------------------------------------
 
-def get_fund_manager(symbol: str, save: bool = True) -> str:
+def get_fund_manager(symbol: str, save: bool = True, force: bool = False) -> str:
     """获取基金经理信息（现任经理/任职时间/管理规模/历史业绩）。"""
     code = _normalize_fund_code(symbol)
+
+    if not force and save and is_data_fresh(code, "manager"):
+        fpath = _find_latest_cache_file(code, "manager_", (".md",))
+        return f"[缓存命中] {fpath}"
+
     try:
         url = f"{_FUND_F10}/jjjl_{code}.html"
         r = _fund_get(url, timeout=15)
@@ -504,13 +614,18 @@ def get_fund_manager(symbol: str, save: bool = True) -> str:
 # 5. get_fund_performance - 业绩表现
 # ---------------------------------------------------------------------------
 
-def get_fund_performance(symbol: str, save: bool = True) -> str:
+def get_fund_performance(symbol: str, save: bool = True, force: bool = False) -> str:
     """获取基金各阶段业绩表现（近1周/1月/3月/6月/1年/2年/3年/5年/今年来/成立来）。
 
     数据源: FundArchivesDatas.aspx?type=jdzf —— 返回 var apidata={ content:"<ul>..</ul>"};
     content 中为 <ul>/<li> 结构：首行为表头，后续每行一个阶段。
     """
     code = _normalize_fund_code(symbol)
+
+    if not force and save and is_data_fresh(code, "performance"):
+        fpath = _find_latest_cache_file(code, "performance_", (".md",))
+        return f"[缓存命中] {fpath}"
+
     try:
         url = f"{_FUND_F10}/FundArchivesDatas.aspx"
         params = {"type": "jdzf", "code": code, "rt": str(random.random())}
@@ -573,9 +688,14 @@ def get_fund_performance(symbol: str, save: bool = True) -> str:
 # 6. get_fund_flows - 份额/规模变动
 # ---------------------------------------------------------------------------
 
-def get_fund_flows(symbol: str, save: bool = True) -> str:
+def get_fund_flows(symbol: str, save: bool = True, force: bool = False) -> str:
     """获取基金份额与规模变动（近 8 期，反映申赎压力）。"""
     code = _normalize_fund_code(symbol)
+
+    if not force and save and is_data_fresh(code, "flows"):
+        fpath = _find_latest_cache_file(code, "flows_", (".md",))
+        return f"[缓存命中] {fpath}"
+
     try:
         # 东方财富 datacenter: 基金规模变动
         params = {
@@ -647,9 +767,21 @@ def get_fund_news(
     start_date: str,
     end_date: str,
     save: bool = True,
+    force: bool = False,
 ) -> str:
     """获取基金相关新闻（基于基金代码+名称搜索）。"""
     code = _normalize_fund_code(symbol)
+
+    # 缓存检查：查找 fund_news_{start}_{end}.md
+    if not force and save:
+        fund_dir = get_fund_data_dir(code)
+        cache_name = f"fund_news_{start_date}_{end_date}.md"
+        cache_path = os.path.join(fund_dir, cache_name)
+        if os.path.isfile(cache_path) and os.path.getsize(cache_path) > 0:
+            age_hours = (time.time() - os.path.getmtime(cache_path)) / 3600
+            if age_hours < _CACHE_MAX_AGE_HOURS["news"]:
+                return f"[缓存命中] {cache_path}（{age_hours:.1f}h 前拉取，未过期）"
+
     try:
         # 先取基金简称用于搜索
         name = _probe_fund_name(code) or code

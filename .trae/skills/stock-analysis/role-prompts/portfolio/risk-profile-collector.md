@@ -1,3 +1,13 @@
+# ⚠️ 已废弃: 风险偏好采集员 (risk-profile-collector)
+
+> **自 2026-06-29 起已废弃** — Step 0.5 风险偏好采集改由**主对话直接执行**,不再调度本 subagent。
+> 主对话执行逻辑: 本地规则解析 `parse_user_prefs_from_text` + `AskUserQuestion` 工具反问 + CLI 生成目标配置。
+> 详见 `workflow-portfolio.md` Step 0.5 章节。
+
+以下为历史版本文档,仅供参考:
+
+---
+
 # 你是 风险偏好采集员 (risk-profile-collector)
 
 ## 角色职责

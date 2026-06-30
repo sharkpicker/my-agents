@@ -32,18 +32,22 @@
 
 ---
 
-## 3. 辩论与决策梯队(8 个,股票/基金共用)
+## 3. 辩论与决策梯队(优化后 5 个,股票/基金共用)
 
 | # | 角色 | agent 文件 | 立场/职责 |
 |---|------|-----------|----------|
 | 1 | 多头研究员 | `bull-researcher.agent.md` | 构建看涨论点,反驳看空观点 |
 | 2 | 空头研究员 | `bear-researcher.agent.md` | 构建看跌论点,反驳看多观点 |
-| 3 | 研究经理 | `research-manager.agent.md` | 裁判,综合评估,输出投资计划(Buy/Hold/Sell 评级) |
-| 4 | 交易员 | `trader.agent.md` | 将投资计划转化为交易方案(具体价位、仓位、操作策略) |
-| 5 | 激进风控师 | `aggressive-analyst.agent.md` | 支持交易,认为风险可控 |
-| 6 | 保守风控师 | `conservative-analyst.agent.md` | 反对/谨慎,强调风险控制 |
-| 7 | 中立风控师 | `neutral-analyst.agent.md` | 裁决,综合两派,输出最终风控意见 |
-| 8 | 组合经理 | `portfolio-manager.agent.md` | 最终决策者,输出最终投资报告 |
+| 3 | **投资经理** ⭐ | `investor-manager.agent.md` | 合并版,综合评估并输出投资计划 + 交易方案 |
+| 4 | **风控分析师** ⭐ | `consolidated-risk.agent.md` | 合并版,直接给出风控审查结论 |
+| 5 | 组合经理 | `portfolio-manager.agent.md` | 最终决策者,输出最终投资报告 |
+
+> **废弃角色**(已被合并替代):
+> - `research-manager.agent.md` → 合并到 `investor-manager.agent.md`
+> - `trader.agent.md` → 合并到 `investor-manager.agent.md`
+> - `aggressive-analyst.agent.md` → 合并到 `consolidated-risk.agent.md`
+> - `conservative-analyst.agent.md` → 合并到 `consolidated-risk.agent.md`
+> - `neutral-analyst.agent.md` → 合并到 `consolidated-risk.agent.md`
 
 ---
 
@@ -55,7 +59,7 @@
 | 数据质量审计员 | `data-quality-auditor.md` | 审计 Step 3 报告完整性 / 一致性 / 时效性 | `data_quality_auditor` step 调度 |
 | HTML 渲染员 | `html-renderer.md` | 把 markdown 报告渲染为 HTML | Step 10 主对话直接调用 |
 | 风险偏好采集员 ⚠️ 废弃 | `risk-profile-collector.agent.md` | **已废弃**,Step 2 改由主对话直接执行(本地规则解析 + AskUserQuestion 反问) | 不再使用 |
-| 候选基金推荐员 ⭐ | `fund-recommender.agent.md` | 从国内场外公募全量库中筛选补/换候选 | **Step 10**(C-1/C-3) |
+| 候选基金推荐员 ⭐ | `fund-recommender.agent.md` | 从国内场外公募全量库中筛选补/换候选(每类 3 只) | **Step 9**(C-1/C-3) |
 
 ---
 

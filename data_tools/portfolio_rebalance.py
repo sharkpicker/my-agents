@@ -141,13 +141,30 @@ def classify_positions(positions: Iterable[dict | PositionLike]) -> list[Positio
 # 2. 计算当前资产配置
 # ---------------------------------------------------------------------------
 
-def compute_current_allocation(positions: list[PositionLike]) -> dict[str, float]:
-    total = sum(p.amount for p in positions)
+def compute_current_allocation(
+    positions: list[PositionLike],
+    cash_amount: float = 0.0,
+) -> dict[str, float]:
+    """计算当前资产配置百分比。
+
+    Parameters
+    ----------
+    positions : list[PositionLike]
+        非 cash 类持仓列表（基金/股票）。
+    cash_amount : float, optional
+        现金类资产金额（如余额宝）。默认 0。
+        传入后会将其计入 cash 类别，并作为总资产的分母一部分，
+        使得各类百分比基于"总资产 = 基金 + 现金"计算。
+    """
+    fund_total = sum(p.amount for p in positions)
+    total = fund_total + cash_amount
     if total <= 0:
         return {c: 0.0 for c in ASSET_CATEGORIES}
-    out = {c: 0.0 for c in ASSET_CATEGORIES}
+    out: dict[str, float] = {c: 0.0 for c in ASSET_CATEGORIES}
     for p in positions:
         out[p.category] = out.get(p.category, 0.0) + p.amount
+    if cash_amount > 0:
+        out["cash"] = out.get("cash", 0.0) + cash_amount
     return {c: round(v / total, 4) for c, v in out.items()}
 
 
@@ -163,12 +180,25 @@ TRIM_THRESHOLD = 0.03
 def compute_gap(
     positions: list[PositionLike],
     target_allocation: dict[str, float],
+    cash_amount: float = 0.0,
 ) -> tuple[dict[str, float], list[GapItem], list[str], list[str]]:
-    """计算当前 vs 目标的 gap,返回 (current_alloc, gaps, underweight, overweight)。"""
-    total = sum(p.amount for p in positions)
+    """计算当前 vs 目标的 gap,返回 (current_alloc, gaps, underweight, overweight)。
+
+    Parameters
+    ----------
+    positions : list[PositionLike]
+        非 cash 类持仓列表（基金/股票）。
+    target_allocation : dict[str, float]
+        目标配置（由 get_target_allocation 生成）。
+    cash_amount : float, optional
+        现金类资产金额（如余额宝）。默认 0。
+        传入后 cash 会作为一类资产参与 gap 计算。
+    """
+    fund_total = sum(p.amount for p in positions)
+    total = fund_total + cash_amount
     if total <= 0:
         total = 0.0
-    current = compute_current_allocation(positions)
+    current = compute_current_allocation(positions, cash_amount=cash_amount)
 
     gaps: list[GapItem] = []
     underweight: list[str] = []
@@ -284,7 +314,7 @@ def screen_replacement_funds(
     categories: list[str],
     prefs: UserPrefs,
     universe_path: str | None = None,
-    per_category: int = 5,
+    per_category: int = 3,
     held_codes: set[str] | None = None,
 ) -> dict[str, list[dict]]:
     """从基金全量库中,为每个 underweight 类别筛选 Top-N 候选基金。

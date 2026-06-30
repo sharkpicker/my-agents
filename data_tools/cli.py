@@ -227,37 +227,37 @@ def cmd_fund_detect(args):
 
 def cmd_fund_nav(args):
     """获取基金历史净值."""
-    print(fund_data.get_fund_nav(args.symbol, args.start, args.end))
+    print(fund_data.get_fund_nav(args.symbol, args.start, args.end, force=args.force))
 
 
 def cmd_fund_info(args):
     """获取基金概况."""
-    print(fund_data.get_fund_info(args.symbol))
+    print(fund_data.get_fund_info(args.symbol, force=args.force))
 
 
 def cmd_fund_holdings(args):
     """获取基金重仓股."""
-    print(fund_data.get_fund_holdings(args.symbol))
+    print(fund_data.get_fund_holdings(args.symbol, force=args.force))
 
 
 def cmd_fund_manager(args):
     """获取基金经理."""
-    print(fund_data.get_fund_manager(args.symbol))
+    print(fund_data.get_fund_manager(args.symbol, force=args.force))
 
 
 def cmd_fund_performance(args):
     """获取基金业绩表现."""
-    print(fund_data.get_fund_performance(args.symbol))
+    print(fund_data.get_fund_performance(args.symbol, force=args.force))
 
 
 def cmd_fund_flows(args):
     """获取基金份额/规模变动."""
-    print(fund_data.get_fund_flows(args.symbol))
+    print(fund_data.get_fund_flows(args.symbol, force=args.force))
 
 
 def cmd_fund_news(args):
     """获取基金相关新闻."""
-    print(fund_data.get_fund_news(args.symbol, args.start, args.end))
+    print(fund_data.get_fund_news(args.symbol, args.start, args.end, force=args.force))
 
 
 def cmd_fund_global_news(args):
@@ -1048,31 +1048,37 @@ def main():
     pf2.add_argument("symbol", help="基金代码 (6位)")
     pf2.add_argument("--start", required=True, help="开始日期 YYYY-MM-DD")
     pf2.add_argument("--end", required=True, help="结束日期 YYYY-MM-DD")
+    pf2.add_argument("--force", action="store_true", help="强制拉取，忽略本地缓存")
     pf2.set_defaults(func=cmd_fund_nav)
 
     # fund info
     pf2 = fund_sub.add_parser("info", help="获取基金概况")
     pf2.add_argument("symbol", help="基金代码")
+    pf2.add_argument("--force", action="store_true", help="强制拉取，忽略本地缓存")
     pf2.set_defaults(func=cmd_fund_info)
 
     # fund holdings
     pf2 = fund_sub.add_parser("holdings", help="获取基金重仓股")
     pf2.add_argument("symbol", help="基金代码")
+    pf2.add_argument("--force", action="store_true", help="强制拉取，忽略本地缓存")
     pf2.set_defaults(func=cmd_fund_holdings)
 
     # fund manager
     pf2 = fund_sub.add_parser("manager", help="获取基金经理")
     pf2.add_argument("symbol", help="基金代码")
+    pf2.add_argument("--force", action="store_true", help="强制拉取，忽略本地缓存")
     pf2.set_defaults(func=cmd_fund_manager)
 
     # fund performance
     pf2 = fund_sub.add_parser("performance", help="获取基金业绩表现")
     pf2.add_argument("symbol", help="基金代码")
+    pf2.add_argument("--force", action="store_true", help="强制拉取，忽略本地缓存")
     pf2.set_defaults(func=cmd_fund_performance)
 
     # fund flows
     pf2 = fund_sub.add_parser("flows", help="获取基金份额/规模变动")
     pf2.add_argument("symbol", help="基金代码")
+    pf2.add_argument("--force", action="store_true", help="强制拉取，忽略本地缓存")
     pf2.set_defaults(func=cmd_fund_flows)
 
     # fund news
@@ -1080,6 +1086,7 @@ def main():
     pf2.add_argument("symbol", help="基金代码")
     pf2.add_argument("--start", required=True, help="开始日期 YYYY-MM-DD")
     pf2.add_argument("--end", required=True, help="结束日期 YYYY-MM-DD")
+    pf2.add_argument("--force", action="store_true", help="强制拉取，忽略本地缓存")
     pf2.set_defaults(func=cmd_fund_news)
 
     # fund global-news

@@ -144,7 +144,7 @@ python -m data_tools.cli fund universe repair --force           # 强制清空 t
 
 ---
 
-## 组合命令(portfolio) ⭐ C-1/C-3 增强
+## 组合命令(portfolio)
 
 > 用于 Step 0.5 / 2.6 / 5.5:从用户风险偏好到目标资产配置再到候选基金补/换的端到端链路。
 
