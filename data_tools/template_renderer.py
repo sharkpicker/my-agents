@@ -77,18 +77,46 @@ def enrich_portfolio_context(context: dict) -> dict:
             p1.sort(key=lambda x: -len(x["reasons"]))
 
             p2 = []
+            underweight_cats = []
             for g in gap_report.get("gaps", []):
                 if g.get("action") == "add":
+                    underweight_cats.append(g.get("category", ""))
                     p2.append({
                         "category": g.get("category", ""),
                         "target_pct": g.get("target_pct", 0.0),
                         "current_pct": g.get("current_pct", 0.0),
                         "delta_amount": g.get("delta_amount", 0.0),
                         "feature_tags": _feature_tags_for(g.get("category", "")),
+                        "rec_code": "",
+                        "rec_name": "",
                     })
+
+            if underweight_cats:
+                try:
+                    from .portfolio_rebalance import screen_replacement_funds
+                    held_codes = {p["code"] for p in positions}
+                    candidates = screen_replacement_funds(
+                        categories=underweight_cats,
+                        prefs=prefs,
+                        per_category=1,
+                        held_codes=held_codes,
+                    )
+                    for item in p2:
+                        cat = item["category"]
+                        if cat in candidates and candidates[cat]:
+                            top = candidates[cat][0]
+                            item["rec_code"] = top.get("code", "")
+                            item["rec_name"] = top.get("name", "")
+                except Exception:
+                    pass
 
             exit_codes = {it["code"] for it in p0 + p1}
             p3 = [it for it in exit_items if it["code"] not in exit_codes]
+
+            for item in p3:
+                signals = fund_reports.get(item["code"], {}).get("quality_signals", {})
+                item["opportunity"] = _opportunity_hint(signals)
+                item["risk_hint"] = _risk_hint(signals)
 
             context["action_recommendations"] = {
                 "p0_clear": p0,
@@ -117,6 +145,46 @@ def _feature_tags_for(category: str) -> list[str]:
         "index": ["宽基", "Smart Beta", "费率 < 0.5%"],
     }
     return tags_map.get(category, [])[:3]
+
+
+def _opportunity_hint(signals: dict) -> str:
+    """基于 quality_signals 生成机会要点。"""
+    if not signals:
+        return "数据不足，暂无明确机会"
+    hints = []
+    perf = signals.get("performance", {})
+    if perf.get("score", 0) >= 70:
+        hints.append("历史业绩优秀")
+    scale = signals.get("scale", {})
+    if scale.get("score", 0) >= 70:
+        hints.append("规模充裕")
+    manager = signals.get("manager", {})
+    if manager.get("score", 0) >= 70 and not manager.get("manager_change", False):
+        hints.append("经理稳定")
+    policy = signals.get("policy_sentiment", {})
+    if policy.get("score", 0) >= 70:
+        hints.append("政策面有利")
+    return "；".join(hints) if hints else "暂无突出机会信号"
+
+
+def _risk_hint(signals: dict) -> str:
+    """基于 quality_signals 生成风险提示。"""
+    if not signals:
+        return "数据不足，需关注"
+    hints = []
+    scale = signals.get("scale", {})
+    if scale.get("score", 100) < 40:
+        hints.append("规模偏小")
+    perf = signals.get("performance", {})
+    if perf.get("score", 100) < 40:
+        hints.append("业绩不佳")
+    manager = signals.get("manager", {})
+    if manager.get("manager_change", False):
+        hints.append("经理变更")
+    conc = signals.get("concentration", {})
+    if conc.get("score", 100) < 40:
+        hints.append("持仓集中")
+    return "；".join(hints) if hints else "暂无明显风险"
 
 
 def render_portfolio(context: dict) -> str:

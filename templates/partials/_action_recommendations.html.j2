@@ -56,7 +56,7 @@
     <p class="muted">以下品类当前占比低于目标，需按特征标签筛选场内/场外公募补仓</p>
     <table class="action-table">
       <thead>
-        <tr><th>品类</th><th>目标占比</th><th>当前占比</th><th>缺口金额</th><th>期望特征标签</th></tr>
+        <tr><th>品类</th><th>目标占比</th><th>当前占比</th><th>缺口金额</th><th>期望特征标签</th><th>推荐基金</th></tr>
       </thead>
       <tbody>
       {% for cat in action_recommendations.p2_add %}
@@ -68,6 +68,13 @@
           <td>
             {% for tag in cat.feature_tags %}<span class="feature-chip">{{ tag }}</span>{% endfor %}
           </td>
+          <td>
+            {% if cat.rec_code %}
+              <code>{{ cat.rec_code }}</code> {{ cat.rec_name }}
+            {% else %}
+              <span class="muted">—</span>
+            {% endif %}
+          </td>
         </tr>
       {% endfor %}
       </tbody>
@@ -76,10 +83,25 @@
 
   {% if action_recommendations.p3_hold %}
     <h3>P3 维持当前</h3>
-    <ul>
+    <table class="action-table">
+      <thead>
+        <tr><th>代码</th><th>名称</th><th>当前净值</th><th>金额</th><th>机会要点</th><th>风险提示</th></tr>
+      </thead>
+      <tbody>
       {% for item in action_recommendations.p3_hold %}
-        <li><code>{{ item.code }}</code> {{ item.name }} — 维持占比与特征匹配</li>
+        <tr>
+          <td><code>{{ item.code }}</code></td>
+          <td>{{ item.name }}</td>
+          <td>
+            {% if item.unit_nav is defined and item.unit_nav is not none %}{{ "%.4f"|format(item.unit_nav) }}
+            {% else %}<span class="muted">[缺失]</span>{% endif %}
+          </td>
+          <td>{{ "%.0f"|format(item.amount) }}</td>
+          <td>{{ item.opportunity }}</td>
+          <td>{{ item.risk_hint }}</td>
+        </tr>
       {% endfor %}
-    </ul>
+      </tbody>
+    </table>
   {% endif %}
 </section>

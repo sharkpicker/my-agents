@@ -62,9 +62,20 @@ def fake_context() -> dict:
                     "current_pct": 0.15,
                     "delta_amount": 5000.0,
                     "feature_tags": ["短债", "中短债", "7日年化"],
+                    "rec_code": "003547",
+                    "rec_name": "鹏华0-5年利率债A",
                 },
             ],
-            "p3_hold": [],
+            "p3_hold": [
+                {
+                    "code": "011095",
+                    "name": "博时恒泽混合A",
+                    "amount": 10000.0,
+                    "unit_nav": 1.2345,
+                    "opportunity": "历史业绩优秀；经理稳定",
+                    "risk_hint": "暂无明显风险",
+                },
+            ],
         },
         "balance": {"equity_ratio": 30.0, "bond_ratio": 70.0},
         "target_allocation": [
@@ -103,7 +114,7 @@ def test_data_source_audit_partial_renderable(jinja_env, fake_context):
 
 
 def test_action_recommendations_partial_renderable(jinja_env, fake_context):
-    """操作建议 partial 可独立渲染,补充类清单含期望特征标签。"""
+    """操作建议 partial 可独立渲染,补充类清单含期望特征标签+推荐基金。"""
     template = jinja_env.get_template(
         "partials/_action_recommendations.html.j2"
     )
@@ -111,6 +122,23 @@ def test_action_recommendations_partial_renderable(jinja_env, fake_context):
     assert "操作建议" in output
     assert "P2 增量配置" in output
     assert "短债" in output
+    assert "003547" in output
+    assert "鹏华0-5年利率债A" in output
+    assert "推荐基金" in output
+
+
+def test_p3_hold_renders_as_table_with_opportunity_and_risk(jinja_env, fake_context):
+    """P3 维持当前以表格展示，含机会要点和风险提示列。"""
+    template = jinja_env.get_template(
+        "partials/_action_recommendations.html.j2"
+    )
+    output = template.render(**fake_context)
+    assert "P3 维持当前" in output
+    assert "011095" in output
+    assert "历史业绩优秀" in output
+    assert "暂无明显风险" in output
+    assert "机会要点" in output
+    assert "风险提示" in output
 
 
 def test_full_template_include_order_audit():
