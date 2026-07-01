@@ -689,8 +689,8 @@ Task({description: "组合经理最终报告", prompt: "你是 portfolio-manager
 [Step 8] ⭐ 投资经理 subagent → portfolio_investment_plan.md
         (合并原研究经理 + 交易员,输出投资计划 + 交易方案)
     ↓
-[Step 9] ⭐ C-1/C-3 必做: fund-recommender subagent → portfolio_fund_recommendations.md
-        (每类 3 只候选 × 7 分析师 + 1 轮辩论)
+[Step 9] ⭐ C-1/C-3 必做: 主对话内联生成补充/清除分类清单
+        (调用 classify_exit_reasons, 不再输出 Top-3 候选评分表)
     ↓
 [Step 10] 风控 subagent → portfolio_risk.md
         (合并版,直接给出审查结论)
@@ -698,7 +698,7 @@ Task({description: "组合经理最终报告", prompt: "你是 portfolio-manager
 [Step 11] portfolio-manager subagent → 最终报告
     ↓
 [Step 12] 主对话渲染 HTML → 保存 reports/<日期>/portfolio_<日期>.html
-        (C-1/C-3 专项:包含"用户偏好 / 资产 gap / 推荐补换 / 调整后配置"模块)
+        (C-1/C-3 专项:包含"用户偏好 / 资产 gap / 操作建议 / 数据源评估 / 调整后配置"模块)
     ↓
 向用户报告路径 + 核心结论
 ```
@@ -719,8 +719,8 @@ Task({description: "组合经理最终报告", prompt: "你是 portfolio-manager
 | **Step 5 专项维度** | 清盘风险 / 申赎 / 经理依赖 | 行业 / 市值 / 估值 / 财报 / 解禁 | **股债平衡 / 跨类别相关性 / 重复持仓检查** |
 | **Step 5 必查纪律** | 单一基金 > 25% / 单一行业 > 40% / 经理集中 | 单一股票 > 20% / 单一行业 > 30% / 财报爆雷 | 权益占比 / 跨类别相关性 / 重复暴露 |
 | **Step 6 Gap 分析** | ✅ 必做 | ❌ 不做 | ✅ 必做 |
-| **Step 9 基金推荐** | ✅ 必做 | ❌ 不做 | ✅ 必做 |
-| **Step 12 HTML 专项模块** | 清盘风险表 / 经理表 / 推荐基金表 | 行业表 / 估值表 / 解禁表 | **股债饼图 / 重复持仓清单 / 推荐基金表** |
+| **Step 9 基金推荐** | ✅ 必做（补充/清除分类清单） | ❌ 不做 | ✅ 必做（补充/清除分类清单） |
+| **Step 12 HTML 专项模块** | 清盘风险表 / 经理表 / 操作建议表 / 数据源评估表 | 行业表 / 估值表 / 解禁表 | **股债饼图 / 重复持仓清单 / 操作建议 / 数据源评估表** |
 
 ---
 
@@ -733,5 +733,5 @@ Task({description: "组合经理最终报告", prompt: "你是 portfolio-manager
 5. **不要遗漏清盘风险分析** — 这是基金(C-1 和 C-3)特有的核心风险维度。
 6. **不要遗漏"集中度纪律"** — 单一标的 > 25%、单一行业 > 40% 必须提示。
 7. **Step 12 HTML 不可跳过** — 必须在所有 subagent 完成后立即渲染保存。
-8. **Step 9 基金推荐不可跳过** — C-1/C-3 组合必须执行,除非明确满足跳过条件。
+8. **Step 9 补充/清除分类不可跳过** — C-1/C-3 组合必须执行,除非明确满足跳过条件(underweight 为空 / C-2 全股票 / 用户明确说不需要 / fund_list.json 缺失)。
 9. **步骤顺序不可颠倒** — 必须按 Step 1-12 顺次执行,Step 9(推荐)必须在 Step 10(交易方案)之前完成。
