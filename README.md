@@ -236,6 +236,7 @@ python -m data_tools.cli fund detect <代码>
 
 # 净值与业绩
 python -m data_tools.cli fund nav <基金代码> --start <开始日期> --end <结束日期>
+python -m data_tools.cli fund nav-cached <基金代码> [--threshold-hours 4] [--force]
 python -m data_tools.cli fund performance <基金代码>
 
 # 概况与经理
@@ -452,9 +453,13 @@ my_agents/
 ├── data_tools/                             # 数据获取工具
 │   ├── __init__.py
 │   ├── stock_data.py                       # 股票数据源封装
-│   ├── fund_data.py                        # 基金数据源封装
+│   ├── fund_data.py                        # 基金数据源封装（含净值缓存校验）
+│   ├── portfolio.py                        # 组合分析工具（含清除清单分类）
+│   ├── portfolio_rebalance.py              # 组合再平衡（Gap分析+候选筛选）
+│   ├── portfolio_prefs.py                  # 用户偏好管理
+│   ├── template_renderer.py               # Jinja2 渲染器（含上下文注入）
 │   ├── universe.py                         # 全量采集调度器
-│   └── cli.py                              # CLI 入口（股票+基金命令）
+│   └── cli.py                              # CLI 入口（股票+基金+组合命令）
 ├── .trae/skills/                           # 项目级 TRAE 技能
 │   └── stock-analysis/SKILL.md             # 股票+基金分析触发技能（含路由分发）
 ├── docs/                                   # 设计文档
@@ -493,7 +498,17 @@ python -m data_tools.cli detect "001717"
 
 ### 组合诊断(C-1 / C-2 / C-3)
 
-提供持仓列表(基金 / 股票 / 混合),系统自动识别类型并跑相应工作流。
+提供持仓列表(基金 / 股票 / 混合),系统自动识别类型并跑相应工作流。组合工作流共 12 步，核心步骤：
+
+1. **标的识别与分流** → 确认每只标的类型，分流为 C-1(全基金)/C-2(全股票)/C-3(混合)
+2. **7 大分析师并行调研** → 按类型调度股票/基金分析师 subagent
+3. **组合层面诊断** → 自适应 C-1/C-2/C-3 维度，含集中度/重复暴露/清盘风险检查
+4. **Gap 分析** → C-1/C-3 必做：当前 vs 目标权重，计算 underweight/overweight
+5. **多空辩论 + 投资经理 + 风控审查**
+6. **补充/清除分类清单** → C-1/C-3 必做：输出补充类清单(品类缺口+推荐基金)和清除类清单(具体基金+9种筛掉原因)
+7. **HTML 报告生成** → 操作建议(P0-P3)前置，数据源评估紧随
+
+**报告章节顺序**：操作建议 → 数据源评估 → 核心观点 → 多维度分析 → 投资逻辑 → 补充/清除清单 → 关注要点 → 免责声明
 
 ## 4 个新 agent(2026-06 重构)
 
@@ -519,6 +534,8 @@ pytest tests/e2e -v    # 仅 5 个 E2E
 - [测试运行指南](docs/testing.md)
 - [重构设计 spec](docs/superpowers/specs/2026-06-27-stock-analysis-refactor-design.md)
 - [实施计划](docs/superpowers/plans/2026-06-27-stock-analysis-refactor.md)
+- [组合工作流优化 spec](docs/superpowers/specs/2026-07-01-portfolio-workflow-redesign-design.md)
+- [组合工作流优化计划](docs/superpowers/plans/2026-07-01-portfolio-workflow-redesign.md)
 
 ---
 
