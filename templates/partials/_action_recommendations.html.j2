@@ -1,0 +1,85 @@
+<section class="action-recommendations">
+  <h2>操作建议</h2>
+
+  {% if action_recommendations.p0_clear %}
+    <h3>P0 立即清出</h3>
+    <table class="action-table">
+      <thead>
+        <tr><th>代码</th><th>名称</th><th>当前净值</th><th>金额</th><th>初步筛掉原因</th></tr>
+      </thead>
+      <tbody>
+      {% for item in action_recommendations.p0_clear %}
+        <tr class="p0-row">
+          <td><code>{{ item.code }}</code></td>
+          <td>{{ item.name }}</td>
+          <td>
+            {% if item.unit_nav is not none %}{{ "%.4f"|format(item.unit_nav) }}
+            {% else %}<span class="muted">[缺失]</span>{% endif %}
+          </td>
+          <td>{{ "%.0f"|format(item.amount) }}</td>
+          <td>
+            {% for r in item.reasons %}<span class="reason-chip">{{ r.label }}</span>{% endfor %}
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+
+  {% if action_recommendations.p1_trim %}
+    <h3>P1 分批减仓</h3>
+    <table class="action-table">
+      <thead>
+        <tr><th>代码</th><th>名称</th><th>当前净值</th><th>金额</th><th>初步筛掉原因</th></tr>
+      </thead>
+      <tbody>
+      {% for item in action_recommendations.p1_trim %}
+        <tr>
+          <td><code>{{ item.code }}</code></td>
+          <td>{{ item.name }}</td>
+          <td>
+            {% if item.unit_nav is not none %}{{ "%.4f"|format(item.unit_nav) }}
+            {% else %}<span class="muted">[缺失]</span>{% endif %}
+          </td>
+          <td>{{ "%.0f"|format(item.amount) }}</td>
+          <td>
+            {% for r in item.reasons %}<span class="reason-chip">{{ r.label }}</span>{% endfor %}
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+
+  {% if action_recommendations.p2_add %}
+    <h3>P2 增量配置</h3>
+    <p class="muted">以下品类当前占比低于目标，需按特征标签筛选场内/场外公募补仓</p>
+    <table class="action-table">
+      <thead>
+        <tr><th>品类</th><th>目标占比</th><th>当前占比</th><th>缺口金额</th><th>期望特征标签</th></tr>
+      </thead>
+      <tbody>
+      {% for cat in action_recommendations.p2_add %}
+        <tr>
+          <td>{{ cat.category }}</td>
+          <td>{{ "%.1f%%"|format(cat.target_pct * 100) }}</td>
+          <td>{{ "%.1f%%"|format(cat.current_pct * 100) }}</td>
+          <td>{{ "%+.0f"|format(cat.delta_amount) }}</td>
+          <td>
+            {% for tag in cat.feature_tags %}<span class="feature-chip">{{ tag }}</span>{% endfor %}
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+
+  {% if action_recommendations.p3_hold %}
+    <h3>P3 维持当前</h3>
+    <ul>
+      {% for item in action_recommendations.p3_hold %}
+        <li><code>{{ item.code }}</code> {{ item.name }} — 维持占比与特征匹配</li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+</section>

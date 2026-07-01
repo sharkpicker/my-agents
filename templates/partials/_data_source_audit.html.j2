@@ -1,0 +1,63 @@
+<section class="data-source-audit">
+  <h2>数据源评估</h2>
+  {% if data_source_audit %}
+    <table>
+      <thead>
+        <tr>
+          <th>代码</th><th>名称</th><th>当前净值</th><th>日收益</th>
+          <th>缓存状态</th><th>报告完整度</th><th>缺失维度</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for row in data_source_audit %}
+        <tr>
+          <td><code>{{ row.code }}</code></td>
+          <td>{{ row.name }}</td>
+          <td>
+            {% if row.unit_nav is not none %}
+              {{ "%.4f"|format(row.unit_nav) }}
+            {% else %}
+              <span class="muted">[缺失]</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if row.daily_return is not none %}
+              {{ "%+.2f%%"|format(row.daily_return * 100) }}
+            {% else %}
+              <span class="muted">—</span>
+            {% endif %}
+          </td>
+          <td>
+            {% set status_color = {
+              'fresh': '🟢', 'stale': '🟡',
+              'missing': '🔴', 'force_refetch': '🔵'
+            } %}
+            {{ status_color.get(row.cache_status, '⚪') }}
+            {% if row.cache_status == 'fresh' %}
+              今日更新
+            {% elif row.cache_status == 'stale' %}
+              数据可能滞后
+            {% elif row.cache_status == 'missing' %}
+              净值缺失
+            {% else %}
+              实时拉取
+            {% endif %}
+          </td>
+          <td>
+            {{ row.reports_count }}/7
+          </td>
+          <td>
+            {% if row.missing_dimensions %}
+              <span class="muted">{{ row.missing_dimensions | join(', ') }}</span>
+            {% else %}
+              —
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p class="muted">无数据源信息</p>
+  {% endif %}
+</section>

@@ -230,6 +230,36 @@ def cmd_fund_nav(args):
     print(fund_data.get_fund_nav(args.symbol, args.start, args.end, force=args.force))
 
 
+def cmd_fund_nav_cached(args):
+    """获取基金单位净值（带缓存校验），输出 JSON。"""
+    from datetime import datetime, timedelta
+
+    unit_nav, daily_return, status = fund_data.get_unit_nav_with_cache_status(
+        args.symbol, threshold_hours=args.threshold_hours
+    )
+
+    if args.force or status in ("stale", "missing"):
+        end = datetime.now().strftime("%Y-%m-%d")
+        start = (datetime.now() - timedelta(days=365)).strftime("%Y-%m-%d")
+        try:
+            fund_data.get_fund_nav(args.symbol, start, end, force=True)
+        except Exception as e:
+            print(f"[拉取失败] {e}", file=sys.stderr)
+        unit_nav, daily_return, status = fund_data.get_unit_nav_with_cache_status(
+            args.symbol, threshold_hours=args.threshold_hours
+        )
+        if status == "missing":
+            status = "force_refetch"
+
+    output = {
+        "code": args.symbol,
+        "unit_nav": unit_nav,
+        "daily_return": daily_return,
+        "cache_status": status,
+    }
+    print(json.dumps(output, ensure_ascii=False, indent=2))
+
+
 def cmd_fund_info(args):
     """获取基金概况."""
     print(fund_data.get_fund_info(args.symbol, force=args.force))
@@ -1088,6 +1118,21 @@ def main():
     pf2.add_argument("--end", required=True, help="结束日期 YYYY-MM-DD")
     pf2.add_argument("--force", action="store_true", help="强制拉取，忽略本地缓存")
     pf2.set_defaults(func=cmd_fund_news)
+
+    # fund nav-cached（带缓存校验的单位净值查询）
+    pf2 = fund_sub.add_parser(
+        "nav-cached", help="获取单位净值（带缓存校验，输出 JSON）"
+    )
+    pf2.add_argument("symbol", help="基金代码")
+    pf2.add_argument(
+        "--threshold-hours", type=float, default=None,
+        help="缓存阈值（小时），默认使用 _CACHE_MAX_AGE_HOURS['nav']=4"
+    )
+    pf2.add_argument(
+        "--force", action="store_true",
+        help="绕过缓存，强制重新拉取"
+    )
+    pf2.set_defaults(func=cmd_fund_nav_cached)
 
     # fund global-news
     pf2 = fund_sub.add_parser("global-news", help="获取行业/主题财经新闻")

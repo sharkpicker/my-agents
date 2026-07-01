@@ -43,68 +43,9 @@ def test_multi_fund_portfolio_e2e(e2e_runner, today):
 
 
 # ==========================================================================
-# Step 5.5 增强版 E2E:验证 HTML 模板渲染包含质量分组成表 + 深度报告路径表
+# Step 5.5 增强版 E2E:原"质量分组成表 + 深度报告路径表"模块已于 2026-07-01 移除
+# 改为"操作建议(P0/P1/P2/P3) + 数据源评估"两个新模块
 # ==========================================================================
-
-
-def test_e2e_html_contains_quality_score_module(e2e_runner, today):
-    """Step 5.5 增强版跑完后,portfolio.html 必须包含质量分组成表模块。"""
-    mock_fund_recommendations = {
-        "recommendations": [
-            {
-                "intent": "add",
-                "category": "bond",
-                "holding_code": None,
-                "candidates": [
-                    {
-                        "rank": 1,
-                        "code": "007466",
-                        "name": "华泰柏瑞中证红利低波ETF联接A",
-                        "type": "指数型",
-                        "score": 78.4,
-                        "name_score": 60.0,
-                        "quality_score": 82.0,
-                        "match_reasons": ["名称含 '低波'", "用户偏好 bond"],
-                        "quality_signals": {
-                            "performance": {"score": 50.0, "details": {}, "missing": False},
-                            "concentration": {"score": 80.0, "details": {}, "missing": False},
-                            "scale": {"score": 60.0, "details": {}, "missing": False},
-                            "manager": {"score": 70.0, "details": {}, "missing": False},
-                            "policy_sentiment": {"score": 75.0, "details": {}, "missing": False},
-                        },
-                        "report_paths": {
-                            "market": "reports/2026-06-27/fund/candidate/007466_market.md",
-                            "fundamentals": "reports/2026-06-27/fund/candidate/007466_fundamentals.md",
-                            "holdings": "reports/2026-06-27/fund/candidate/007466_holdings.md",
-                            "flows": "reports/2026-06-27/fund/candidate/007466_flows.md",
-                            "news": "reports/2026-06-27/fund/candidate/007466_news.md",
-                            "policy": "reports/2026-06-27/fund/candidate/007466_policy.md",
-                            "sentiment": "reports/2026-06-27/fund/candidate/007466_sentiment.md",
-                        },
-                        "quality_missing": False,
-                        "missing_dimensions": [],
-                    },
-                ],
-            },
-        ],
-    }
-    html_path = e2e_runner.render_html(
-        "mock content", "portfolio",
-        meta={"code": "FUND_PORTFOLIO", "name": "我的基金组合", "date": today, "report_type": "C-1"},
-        portfolio_subtype="c1",
-        fund_recommendations=mock_fund_recommendations,
-    )
-    assert html_path.exists()
-    html_text = html_path.read_text(encoding="utf-8")
-    assert "推荐补/换基金的深度评估" in html_text
-    assert "007466" in html_text
-    assert "华泰柏瑞中证红利低波ETF联接A" in html_text
-    # 5 维度信号 chips 必须渲染
-    assert "performance" in html_text
-    assert "concentration" in html_text
-    # 深度报告路径表
-    assert "深度报告路径" in html_text
-    assert "_market" in html_text
 
 
 def test_e2e_html_omits_quality_module_when_no_recommendations(e2e_runner, today):
