@@ -115,6 +115,55 @@ def is_data_fresh(symbol: str, data_type: str) -> bool:
         return False
 
 
+def get_unit_nav_with_cache_status(
+    symbol: str,
+    threshold_hours: float | None = None,
+) -> tuple[float | None, float | None, str]:
+    """读取单位净值 + 日累计收益，返回带缓存状态的三元组。
+
+    Parameters
+    ----------
+    symbol : str
+        基金代码。
+    threshold_hours : float | None, optional
+        自定义缓存阈值（小时）。None 时沿用 _CACHE_MAX_AGE_HOURS["nav"] = 4。
+
+    Returns
+    -------
+    (unit_nav, daily_return, cache_status) :
+        unit_nav     : float | None   单位净值
+        daily_return : float | None   日累计收益（小数，如 0.0032 = 0.32%）
+        cache_status : str ∈ {"fresh", "stale", "missing"}
+    """
+    import csv as csv_mod
+
+    if threshold_hours is None:
+        threshold_hours = _CACHE_MAX_AGE_HOURS.get("nav", 4)
+
+    nav_path = _find_latest_cache_file(symbol, "nav_", (".csv",))
+    if nav_path is None:
+        return None, None, "missing"
+
+    age_hours = (time.time() - os.path.getmtime(nav_path)) / 3600
+    status = "fresh" if age_hours < threshold_hours else "stale"
+
+    unit_nav: float | None = None
+    daily_return: float | None = None
+    try:
+        with open(nav_path, "r", encoding="utf-8") as f:
+            reader = csv_mod.DictReader(f)
+            rows = list(reader)
+            if rows:
+                last = max(rows, key=lambda r: r.get("净值日期", ""))
+                unit_nav = float(last["单位净值"])
+                dr_str = str(last.get("日增长率", "0%")).rstrip("%").strip()
+                daily_return = float(dr_str) / 100.0
+    except (ValueError, KeyError, OSError):
+        pass
+
+    return unit_nav, daily_return, status
+
+
 # ---------------------------------------------------------------------------
 # 基金接口端点
 # ---------------------------------------------------------------------------
