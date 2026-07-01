@@ -472,12 +472,6 @@ my_agents/
 
 ---
 
-## 设计文档
-
-- [全量 A 股数据采集系统设计](docs/universe-collector-design.md) — 介绍 `universe.py` 增量采集调度器的架构、调度算法、防封与限流策略
-
----
-
 ## 五种分析场景(新增)
 
 ### 单股票(A)
@@ -532,11 +526,6 @@ pytest tests/e2e -v    # 仅 5 个 E2E
 - [角色模板使用指南](docs/role-prompts.md)
 - [贡献指南](docs/contributing.md)
 - [测试运行指南](docs/testing.md)
-- [重构设计 spec](docs/superpowers/specs/2026-06-27-stock-analysis-refactor-design.md)
-- [实施计划](docs/superpowers/plans/2026-06-27-stock-analysis-refactor.md)
-- [组合工作流优化 spec](docs/superpowers/specs/2026-07-01-portfolio-workflow-redesign-design.md)
-- [组合工作流优化计划](docs/superpowers/plans/2026-07-01-portfolio-workflow-redesign.md)
-
 ---
 
 ## 触发关键词
